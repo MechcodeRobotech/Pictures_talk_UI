@@ -1,8 +1,11 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 
 const Summary: React.FC = () => {
   const { t } = useLanguage();
+  const location = useLocation();
+  const fileName = (location.state as { fileName?: string } | null)?.fileName;
   const [isEditing, setIsEditing] = React.useState(false);
   const [summaryText, setSummaryText] = React.useState(
     [
@@ -103,7 +106,9 @@ const Summary: React.FC = () => {
           <nav className="flex items-center space-x-2 text-sm text-slate-400 dark:text-slate-500 mb-1">
             <span className="hover:text-secondary dark:hover:text-white cursor-pointer">{t('home')}</span>
             <span className="material-icons-round text-base">chevron_right</span>
-            <span className="font-medium text-secondary dark:text-white">AI Meeting Summary</span>
+            <span className="font-medium text-secondary dark:text-white truncate max-w-[360px]" title={fileName ?? t('summary')}>
+              {fileName ?? t('summary')}
+            </span>
           </nav>
           <h2 className="text-2xl md:text-3xl font-bold text-secondary dark:text-white">Weekly Meeting Summary</h2>
         </div>

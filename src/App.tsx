@@ -9,6 +9,8 @@ import Projects from './pages/Projects';
 import Templates from './pages/Templates';
 import Canvas from './pages/Canvas';
 import Summary from './pages/Summary';
+import ResultsPage from './pages/results/page';
+import ResultDetailPage from './pages/results/[resultId]/page';
 import { LanguageProvider } from './LanguageContext';
 
 const AppContent: React.FC<{ isDarkMode: boolean; toggleTheme: () => void }> = ({ isDarkMode, toggleTheme }) => {
@@ -36,6 +38,9 @@ const AppContent: React.FC<{ isDarkMode: boolean; toggleTheme: () => void }> = (
             <Route path="/projects" element={<Projects />} />
             <Route path="/templates" element={<Templates />} />
             <Route path="/summary" element={<Summary />} />
+            <Route path="/summary/:resultId" element={<ResultDetailPage />} />
+            <Route path="/results" element={<ResultsPage />} />
+            <Route path="/results/:resultId" element={<ResultDetailPage />} />
           </Routes>
         </main>
       </div>

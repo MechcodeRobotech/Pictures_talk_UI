@@ -17,6 +17,7 @@ const translations: Translations = {
   template: { en: 'Template', th: 'เทมเพลต' },
   summary: { en: 'Summary', th: 'สรุป' },
   results: { en: 'Results', th: 'ผลลัพธ์' },
+  result_detail: { en: 'Result Detail', th: 'รายละเอียดผลลัพธ์' },
   upgrade_plan: { en: 'Upgrade Plan', th: 'อัปเกรดแพ็กเกจ' },
   upgrade_desc: { en: 'Get unlimited summaries and advanced AI features.', th: 'รับสรุปไม่จำกัดและฟีเจอร์ AI ขั้นสูง' },
   upgrade_now: { en: 'Upgrade Now', th: 'อัปเกรดเลย' },

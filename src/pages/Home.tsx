@@ -65,7 +65,7 @@ const Home: React.FC = () => {
               {uploadError}
             </p>
           )}
-          <UploadProgress percent={45} statusLabel={t('uploading')} />
+          <UploadProgress percent={45} statusLabel={t('uploading')} fileName={selectedFileName} />
         </div>
       </section>
 

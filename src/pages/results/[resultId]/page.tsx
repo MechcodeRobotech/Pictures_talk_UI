@@ -11,11 +11,9 @@ const ResultDetailPage: React.FC = () => {
         <span className="material-icons-round text-base">chevron_right</span>
         <span className="hover:text-secondary dark:hover:text-white cursor-pointer">{t('summary')}</span>
         <span className="material-icons-round text-base">chevron_right</span>
-        <span className="hover:text-secondary dark:hover:text-white cursor-pointer">{t('results')}</span>
-        <span className="material-icons-round text-base">chevron_right</span>
-        <span className="font-medium text-secondary dark:text-white">Result Detail</span>
+        <span className="font-medium text-secondary dark:text-white">{t('result_detail')}</span>
       </nav>
-      <h2 className="text-2xl md:text-3xl font-bold text-secondary dark:text-white">Result Detail</h2>
+      <h2 className="text-2xl md:text-3xl font-bold text-secondary dark:text-white">{t('result_detail')}</h2>
     </div>
   );
 };
