@@ -2,6 +2,10 @@
 import React from 'react';
 import { RecentWorkItem } from '../types';
 import { useLanguage } from '../LanguageContext';
+import VideoButton from '../components/Home/VideoButton';
+import AudioButton from '../components/Home/AudioButton';
+import DragDropUpload from '../components/Home/DragDropUpload';
+import UploadProgress from '../components/Home/UploadProgress';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();
@@ -26,43 +30,13 @@ const Home: React.FC = () => {
         <h3 className="text-2xl md:text-3xl font-bold text-secondary dark:text-white mb-10 relative z-10">{t('upload_title')}</h3>
         
         <div className="flex justify-center space-x-10 md:space-x-20 mb-12 relative z-10">
-          <button className="flex flex-col items-center group/btn">
-            <div className="w-20 h-20 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center mb-3 group-hover/btn:bg-primary group-hover/btn:scale-110 transition-all duration-300 shadow-sm">
-              <span className="material-icons-round text-4xl text-primary group-hover/btn:text-white">play_arrow</span>
-            </div>
-            <span className="font-semibold text-secondary dark:text-slate-200">{t('video')}</span>
-          </button>
-          
-          <button className="flex flex-col items-center group/btn">
-            <div className="w-20 h-20 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center mb-3 group-hover/btn:bg-secondary group-hover/btn:scale-110 transition-all duration-300 shadow-sm">
-              <span className="material-icons-round text-4xl text-secondary dark:text-blue-300 group-hover/btn:text-white">mic</span>
-            </div>
-            <span className="font-semibold text-secondary dark:text-slate-200">{t('audio')}</span>
-          </button>
+          <VideoButton label={t('video')} />
+          <AudioButton label={t('audio')} />
         </div>
 
         <div className="max-w-md mx-auto relative z-10">
-          <label className="cursor-pointer">
-            <div className="w-full h-36 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl flex flex-col items-center justify-center hover:bg-gray-50 dark:hover:bg-white/5 hover:border-primary transition-all group/upload">
-              <span className="material-icons-round text-slate-300 dark:text-slate-600 mb-3 text-4xl group-hover/upload:text-primary transition-colors">cloud_upload</span>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{t('drag_drop')}</p>
-            </div>
-            <input className="hidden" type="file" />
-          </label>
-          
-          <div className="mt-8 w-full bg-slate-200 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden shadow-inner">
-            <div 
-              className="bg-primary h-full rounded-full transition-all duration-1000 shadow-[0_0_15px_rgba(248,175,36,0.5)]" 
-              style={{ width: '45%' }}
-            ></div>
-          </div>
-          <div className="flex justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-3 tracking-wide">
-            <span className="flex items-center gap-1.5 uppercase">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
-              {t('uploading')}
-            </span>
-            <span className="text-primary font-black">45%</span>
-          </div>
+          <DragDropUpload helperText={t('drag_drop')} />
+          <UploadProgress percent={45} statusLabel={t('uploading')} />
         </div>
       </section>
 
