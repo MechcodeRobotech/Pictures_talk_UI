@@ -23,6 +23,12 @@ const UploadProgress: React.FC<UploadProgressProps> = ({ percent, statusLabel })
         </span>
         <span className="text-primary font-black">{safePercent}%</span>
       </div>
+      <button
+        className="mt-6 w-full rounded-xl border border-black bg-black text-white font-semibold py-2.5 hover:bg-black/90 transition-colors"
+        type="button"
+      >
+        Export Audio File
+      </button>
     </>
   );
 };

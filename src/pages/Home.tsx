@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { RecentWorkItem } from '../types';
 import { useLanguage } from '../LanguageContext';
 import VideoButton from '../components/Home/VideoButton';
@@ -9,6 +9,20 @@ import UploadProgress from '../components/Home/UploadProgress';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const handleFileSelect = (file: File) => {
+    setSelectedFileName(file.name);
+    setUploadError(null);
+  };
+  const handleValidationError = (message?: string) => {
+    setSelectedFileName(null);
+    setUploadError(message ?? t('upload_failed'));
+  };
+  const handleClearFile = () => {
+    setSelectedFileName(null);
+    setUploadError(null);
+  };
   const recentWork: RecentWorkItem[] = [
     { id: '1', title: 'Q4 Strategy Meeting', date: 'Oct 24, 2023', duration: '45 mins', icon: 'graphic_eq', gradient: 'from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40' },
     { id: '2', title: 'Product Launch Brainstorm', date: 'Oct 22, 2023', duration: '1 hr 20m', icon: 'pie_chart', gradient: 'from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30' },
@@ -30,12 +44,27 @@ const Home: React.FC = () => {
         <h3 className="text-2xl md:text-3xl font-bold text-secondary dark:text-white mb-10 relative z-10">{t('upload_title')}</h3>
         
         <div className="flex justify-center space-x-10 md:space-x-20 mb-12 relative z-10">
-          <VideoButton label={t('video')} />
+          <VideoButton
+            label={t('video')}
+            onFileSelect={handleFileSelect}
+            onValidationError={handleValidationError}
+          />
           <AudioButton label={t('audio')} />
         </div>
 
         <div className="max-w-md mx-auto relative z-10">
-          <DragDropUpload helperText={t('drag_drop')} />
+          <DragDropUpload
+            helperText={t('drag_drop')}
+            selectedFileName={selectedFileName}
+            onFileSelect={handleFileSelect}
+            onValidationError={handleValidationError}
+            onClear={handleClearFile}
+          />
+          {uploadError && (
+            <p className="mt-3 text-sm text-red-500" role="alert">
+              {uploadError}
+            </p>
+          )}
           <UploadProgress percent={45} statusLabel={t('uploading')} />
         </div>
       </section>

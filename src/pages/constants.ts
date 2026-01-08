@@ -44,5 +44,6 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   templates_desc: { en: 'Start quickly with pre-designed layouts.', th: 'เริ่มต้นอย่างรวดเร็วด้วยเลย์เอาต์ที่ออกแบบไว้ล่วงหน้า' },
   search_placeholder: { en: 'Search assets...', th: 'ค้นหาทรัพยากร...' },
   upload_btn: { en: 'Upload Image', th: 'อัปโหลดรูปภาพ' },
+  upload_failed: { en: 'Upload failed. Please try again.', th: 'อัปโหลดไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' },
   color: { en: 'Color', th: 'สี' },
 };

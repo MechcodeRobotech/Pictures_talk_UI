@@ -30,7 +30,7 @@ const Header: React.FC<HeaderProps> = ({ toggleTheme, isDarkMode }) => {
           onClick={toggleTheme}
           className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
         >
-          <span className="material-icons-round">
+          <span className="material-icons-round text-[24px] relative top-[1px]">
             {isDarkMode ? 'light_mode' : 'dark_mode'}
           </span>
         </button>
@@ -40,9 +40,9 @@ const Header: React.FC<HeaderProps> = ({ toggleTheme, isDarkMode }) => {
             onClick={() => setIsLangOpen(!isLangOpen)}
             className="flex items-center space-x-1 text-sm font-medium text-slate-500 dark:text-slate-300 cursor-pointer hover:text-secondary dark:hover:text-white transition-colors"
           >
-            <span className="material-icons-round text-base">language</span>
+            <span className="material-icons-round text-[24px]">language</span>
             <span className="hidden xs:inline uppercase">{language === 'en' ? 'English' : 'ไทย'}</span>
-            <span className="material-icons-round text-base">expand_more</span>
+            <span className="material-icons-round text-[24px]">expand_more</span>
           </button>
           
           {isLangOpen && (

@@ -15,6 +15,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode }) => {
     { name: t('home'), icon: 'home', path: '/' },
     { name: t('project'), icon: 'folder_open', path: '/projects' },
     { name: t('template'), icon: 'dashboard', path: '/templates' },
+    { name: t('summary'), icon: 'article', path: '/summary' },
   ];
 
   const isActive = (path: string) => location.pathname === path;
