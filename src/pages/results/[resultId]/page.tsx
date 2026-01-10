@@ -1,8 +1,8 @@
 import React from 'react';
-import SummaryLegacy from '../../../components/SummaryLegacy';
+import Summary from '../../Summary';
 
 const ResultDetailPage: React.FC = () => {
-  return <SummaryLegacy />;
+  return <Summary />;
 };
 
 export default ResultDetailPage;

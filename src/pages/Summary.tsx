@@ -1,22 +1,111 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
+
+const DEFAULT_SUMMARY_TEXT = [
+  'In this meeting, the team discussed Marketing Strategy for Q4, focusing on preparing for the new product launch at the end of the year, which is a key period for generating sales.',
+  'A key point raised was regarding the Advertising Budget. The finance department proposed reducing the budget for print media and reallocating it to online media and social media.',
+  'Additionally, the development team updated the progress of Project Alpha, stating that it is currently in final system testing and is expected to be ready for a soft launch in the next 2 weeks.',
+  'Finally, the meeting summarized the operational plan for next week, assigning the marketing department to accelerate Promotion Campaigns with partners to build momentum before the actual product launch.',
+  'The meeting concluded with a follow-up in the next 2 weeks to evaluate progress and adjust plans if necessary.',
+].join('\n\n');
+
+type SummaryLocationState = {
+  fileName?: string;
+  meetingId?: number;
+};
 
 const Summary: React.FC = () => {
   const { t } = useLanguage();
   const location = useLocation();
-  const fileName = (location.state as { fileName?: string } | null)?.fileName;
+  const { resultId } = useParams();
+  const locationState = location.state as SummaryLocationState | null;
+  const meetingIdFromParam = resultId && /^\d+$/.test(resultId) ? Number(resultId) : undefined;
+  const meetingId = locationState?.meetingId ?? meetingIdFromParam;
+  const storedFileName = React.useMemo(() => {
+    if (!resultId) return undefined;
+    try {
+      const raw = localStorage.getItem('summaryResults');
+      if (!raw) return undefined;
+      const parsed = JSON.parse(raw) as { id: string; name: string }[];
+      return parsed.find((item) => item.id === resultId)?.name;
+    } catch {
+      return undefined;
+    }
+  }, [resultId]);
+  const fileName = locationState?.fileName ?? storedFileName;
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
   const [isEditing, setIsEditing] = React.useState(false);
-  const [summaryText, setSummaryText] = React.useState(
-    [
-      'In this meeting, the team discussed Marketing Strategy for Q4, focusing on preparing for the new product launch at the end of the year, which is a key period for generating sales.',
-      'A key point raised was regarding the Advertising Budget. The finance department proposed reducing the budget for print media and reallocating it to online media and social media.',
-      'Additionally, the development team updated the progress of Project Alpha, stating that it is currently in final system testing and is expected to be ready for a soft launch in the next 2 weeks.',
-      'Finally, the meeting summarized the operational plan for next week, assigning the marketing department to accelerate Promotion Campaigns with partners to build momentum before the actual product launch.',
-      'The meeting concluded with a follow-up in the next 2 weeks to evaluate progress and adjust plans if necessary.',
-    ].join('\n\n'),
-  );
+  const [summaryText, setSummaryText] = React.useState(() => (meetingId ? '' : DEFAULT_SUMMARY_TEXT));
+  const [transcriptStatus, setTranscriptStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [transcriptError, setTranscriptError] = React.useState<string | null>(null);
   const summaryTextAreaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const hasUserEditedRef = React.useRef(false);
+
+  React.useEffect(() => {
+    hasUserEditedRef.current = false;
+    if (!meetingId) {
+      setSummaryText(DEFAULT_SUMMARY_TEXT);
+      setTranscriptStatus('idle');
+      setTranscriptError(null);
+      return;
+    }
+
+    setSummaryText('');
+    setTranscriptStatus('loading');
+    setTranscriptError(null);
+
+    let isActive = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const pollTranscript = async () => {
+      if (!isActive) return;
+      try {
+        const transcriptUrl = apiBaseUrl
+          ? new URL(`/api/meetings/${meetingId}/transcript`, apiBaseUrl).toString()
+          : `/api/meetings/${meetingId}/transcript`;
+        const response = await fetch(transcriptUrl);
+        if (!isActive) return;
+        if (response.ok) {
+          const payload = (await response.json()) as { content?: string };
+          const nextText = (payload?.content ?? '').trim();
+          if (!hasUserEditedRef.current) {
+            setSummaryText(nextText);
+          }
+          setTranscriptStatus('ready');
+          setTranscriptError(null);
+          return;
+        }
+        if (response.status === 404) {
+          timeoutId = setTimeout(pollTranscript, 4000);
+          return;
+        }
+        let detail = 'Failed to load transcript.';
+        try {
+          const payload = (await response.json()) as { detail?: string };
+          if (payload?.detail) {
+            detail = payload.detail;
+          }
+        } catch {
+          // Keep default detail message.
+        }
+        throw new Error(detail);
+      } catch (error) {
+        if (!isActive) return;
+        setTranscriptStatus('error');
+        setTranscriptError(error instanceof Error ? error.message : 'Failed to load transcript.');
+      }
+    };
+
+    pollTranscript();
+
+    return () => {
+      isActive = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [meetingId, apiBaseUrl]);
 
   React.useEffect(() => {
     if (isEditing && summaryTextAreaRef.current) {
@@ -24,6 +113,11 @@ const Summary: React.FC = () => {
       summaryTextAreaRef.current.selectionStart = summaryTextAreaRef.current.value.length;
     }
   }, [isEditing]);
+
+  const displayText = summaryText || (!meetingId ? DEFAULT_SUMMARY_TEXT : '');
+  const isWaitingForTranscript = Boolean(meetingId) && transcriptStatus === 'loading' && !summaryText;
+  const showTranscriptError = Boolean(meetingId) && transcriptStatus === 'error';
+  const showEmptyTranscript = Boolean(meetingId) && transcriptStatus === 'ready' && !summaryText;
 
   const keywords = [
     {
@@ -151,17 +245,33 @@ const Summary: React.FC = () => {
               <textarea
                 ref={summaryTextAreaRef}
                 value={summaryText}
-                onChange={(event) => setSummaryText(event.target.value)}
+                onChange={(event) => {
+                  hasUserEditedRef.current = true;
+                  setSummaryText(event.target.value);
+                }}
                 rows={14}
                 className="w-full min-h-[360px] px-5 py-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark text-secondary dark:text-gray-200 placeholder-slate-400 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none resize-none"
               />
             ) : (
               <article className="prose prose-slate dark:prose-invert max-w-none">
-                {summaryText.split(/\n\s*\n/).map((paragraph, index) => (
-                  <p key={`${paragraph.slice(0, 24)}-${index}`} className="text-lg leading-relaxed text-secondary dark:text-gray-200 mb-6">
-                    {paragraph}
-                  </p>
-                ))}
+                {isWaitingForTranscript && (
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Transcribing audio with Fireflies...</p>
+                )}
+                {showTranscriptError && (
+                  <p className="text-sm text-red-500 mb-4">{transcriptError ?? 'Failed to load transcript.'}</p>
+                )}
+                {displayText &&
+                  displayText.split(/\n\s*\n/).map((paragraph, index) => (
+                    <p
+                      key={`${paragraph.slice(0, 24)}-${index}`}
+                      className="text-lg leading-relaxed text-secondary dark:text-gray-200 mb-6"
+                    >
+                      {paragraph}
+                    </p>
+                  ))}
+                {showEmptyTranscript && (
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No transcript content available yet.</p>
+                )}
               </article>
             )}
           </div>

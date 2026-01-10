@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { RecentWorkItem } from '../types';
 import { useLanguage } from '../LanguageContext';
 import VideoButton from '../components/Home/VideoButton';
@@ -9,19 +10,121 @@ import UploadProgress from '../components/Home/UploadProgress';
 
 const Home: React.FC = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const storageKey = 'summaryResults';
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+
+  const saveSummaryResult = (resultId: string, name: string) => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      const existing = raw ? (JSON.parse(raw) as { id: string; name: string; createdAt: number }[]) : [];
+      const next = [
+        { id: resultId, name, createdAt: Date.now() },
+        ...existing.filter((item) => item.id !== resultId),
+      ].slice(0, 12);
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      // Ignore storage errors to avoid blocking navigation.
+    }
+  };
+
   const handleFileSelect = (file: File) => {
+    setSelectedFile(file);
     setSelectedFileName(file.name);
     setUploadError(null);
+    setUploadPercent(0);
   };
   const handleValidationError = (message?: string) => {
+    setSelectedFile(null);
     setSelectedFileName(null);
     setUploadError(message ?? t('upload_failed'));
+    setUploadPercent(0);
   };
   const handleClearFile = () => {
+    setSelectedFile(null);
     setSelectedFileName(null);
     setUploadError(null);
+    setUploadPercent(0);
+  };
+  const handleExport = async (file: File) => {
+    if (isExporting) return;
+    setIsExporting(true);
+    setUploadError(null);
+    setUploadPercent(0);
+
+    try {
+      const data = await new Promise<{ meeting_id?: number }>((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('user_id', '1'); // TODO: replace with authenticated user id.
+
+        const xhr = new XMLHttpRequest();
+        const uploadUrl = apiBaseUrl
+          ? new URL('/api/meetings/upload', apiBaseUrl).toString()
+          : '/api/meetings/upload';
+        xhr.open('POST', uploadUrl);
+
+        xhr.upload.addEventListener('progress', (event) => {
+          if (!event.lengthComputable) return;
+          const nextPercent = Math.round((event.loaded / event.total) * 100);
+          setUploadPercent(nextPercent);
+        });
+
+        xhr.addEventListener('load', () => {
+          const ok = xhr.status >= 200 && xhr.status < 300;
+          if (!ok) {
+            let detail = xhr.statusText || 'Upload failed';
+            try {
+              const payload = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+              if (payload && typeof payload === 'object') {
+                detail =
+                  (payload.message as string) ||
+                  (payload.error as string) ||
+                  (payload.detail as string) ||
+                  detail;
+              }
+            } catch {
+              // Keep existing detail if response isn't JSON.
+            }
+            if (xhr.status === 404 || xhr.status === 405) {
+              detail = `Upload API not available (HTTP ${xhr.status}). Set VITE_API_BASE_URL to your backend.`;
+            }
+            reject(new Error(detail));
+            return;
+          }
+          setUploadPercent(100);
+          try {
+            const payload = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+            resolve(payload as { meeting_id?: number });
+          } catch (error) {
+            reject(error);
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Upload failed'));
+        });
+
+        xhr.send(formData);
+      });
+
+      const meetingId = data.meeting_id;
+      const normalizedName = file.name.trim() || t('untitled');
+      const resultId = meetingId ? String(meetingId) : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      saveSummaryResult(resultId, normalizedName);
+      navigate(`/summary/${resultId}`, { state: { fileName: normalizedName, meetingId } });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : t('upload_failed');
+      setUploadError(message);
+      setUploadPercent(0);
+    } finally {
+      setIsExporting(false);
+    }
   };
   const recentWork: RecentWorkItem[] = [
     { id: '1', title: 'Q4 Strategy Meeting', date: 'Oct 24, 2023', duration: '45 mins', icon: 'graphic_eq', gradient: 'from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40' },
@@ -49,7 +152,11 @@ const Home: React.FC = () => {
             onFileSelect={handleFileSelect}
             onValidationError={handleValidationError}
           />
-          <AudioButton label={t('audio')} />
+          <AudioButton
+            label={t('audio')}
+            onFileSelect={handleFileSelect}
+            onValidationError={handleValidationError}
+          />
         </div>
 
         <div className="max-w-md mx-auto relative z-10">
@@ -65,7 +172,14 @@ const Home: React.FC = () => {
               {uploadError}
             </p>
           )}
-          <UploadProgress percent={45} statusLabel={t('uploading')} fileName={selectedFileName} />
+          <UploadProgress
+            percent={selectedFile ? uploadPercent : 0}
+            statusLabel={uploadPercent === 100 ? t('ready') : t('not_ready')}
+            file={selectedFile}
+            fileName={selectedFileName}
+            isExporting={isExporting}
+            onExport={handleExport}
+          />
         </div>
       </section>
 

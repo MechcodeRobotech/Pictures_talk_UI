@@ -1,32 +1,26 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../LanguageContext';
 
 type UploadProgressProps = {
   percent: number;
   statusLabel: string;
+  file?: File | null;
   fileName?: string | null;
+  isExporting?: boolean;
+  onExport?: (file: File) => void;
 };
 
-const UploadProgress: React.FC<UploadProgressProps> = ({ percent, statusLabel, fileName }) => {
+const UploadProgress: React.FC<UploadProgressProps> = ({
+  percent,
+  statusLabel,
+  file,
+  fileName,
+  isExporting,
+  onExport,
+}) => {
   const safePercent = Math.min(100, Math.max(0, percent));
-  const navigate = useNavigate();
   const { t } = useLanguage();
-  const storageKey = 'summaryResults';
-
-  const saveSummaryResult = (resultId: string, name: string) => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      const existing = raw ? (JSON.parse(raw) as { id: string; name: string; createdAt: number }[]) : [];
-      const next = [
-        { id: resultId, name, createdAt: Date.now() },
-        ...existing.filter((item) => item.id !== resultId),
-      ].slice(0, 12);
-      localStorage.setItem(storageKey, JSON.stringify(next));
-    } catch {
-      // Ignore storage errors to avoid blocking navigation.
-    }
-  };
+  const isDisabled = !file || isExporting || (safePercent > 0 && safePercent < 100);
 
   return (
     <>
@@ -44,13 +38,16 @@ const UploadProgress: React.FC<UploadProgressProps> = ({ percent, statusLabel, f
         <span className="text-primary font-black">{safePercent}%</span>
       </div>
       <button
-        className="mt-6 w-full rounded-xl border border-black bg-black text-white font-semibold py-2.5 hover:bg-black/90 transition-colors"
+        className={`mt-6 w-full rounded-xl border font-semibold py-2.5 transition-colors disabled:cursor-not-allowed ${
+          isDisabled
+            ? 'border-slate-300 bg-slate-200 text-slate-500'
+            : 'border-black bg-black text-white hover:bg-black/90'
+        }`}
         type="button"
+        disabled={isDisabled}
         onClick={() => {
-          const normalizedName = fileName?.trim() || t('untitled');
-          const resultId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-          saveSummaryResult(resultId, normalizedName);
-          navigate(`/summary/${resultId}`, { state: { fileName: normalizedName } });
+          if (!file || !onExport) return;
+          onExport(file);
         }}
       >
         Export Audio File

@@ -3,6 +3,10 @@ import React, { useRef, useState } from 'react';
 const ALLOWED_EXTS = ['.mp3', '.wav', '.m4a', '.mp4', '.mov', '.webm'] as const;
 const ALLOWED_TYPES = [
   'audio/mpeg',
+  'audio/mp3',
+  'audio/mpeg3',
+  'audio/x-mp3',
+  'audio/x-mpeg',
   'audio/wav',
   'audio/x-wav',
   'audio/mp4',
@@ -40,7 +44,8 @@ const DragDropUpload: React.FC<DragDropUploadProps> = ({
     if (!ALLOWED_EXTS.includes(extension as (typeof ALLOWED_EXTS)[number])) {
       return `Unsupported file extension: ${extension}`;
     }
-    if (file.type && !ALLOWED_TYPES.includes(file.type as (typeof ALLOWED_TYPES)[number])) {
+    const normalizedType = file.type.toLowerCase().split(';')[0];
+    if (normalizedType && !ALLOWED_TYPES.includes(normalizedType as (typeof ALLOWED_TYPES)[number])) {
       return `Unsupported file type: ${file.type || 'unknown'}`;
     }
     if (file.size > MAX_SIZE_BYTES) {

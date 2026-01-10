@@ -33,6 +33,8 @@ const translations: Translations = {
   recent_work_desc: { en: 'Review your past summaries and notes.', th: 'ตรวจสอบสรุปและบันทึกย้อนหลังของคุณ' },
   view_all: { en: 'View All', th: 'ดูทั้งหมด' },
   uploading: { en: 'Uploading...', th: 'กำลังอัปโหลด...' },
+  not_ready: { en: 'Not Ready', th: 'ยังไม่พร้อม' },
+  ready: { en: 'Ready', th: 'พร้อมแล้ว' },
 
   // Login Page
   welcome_back: { en: 'Welcome Back', th: 'ยินดีต้อนรับกลับมา' },
