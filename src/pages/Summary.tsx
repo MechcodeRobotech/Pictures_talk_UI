@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation, useParams } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
+import Keywords, { fallbackKeywords, keywordPalette, KeywordItem } from '../components/Summary/Keywords';
 
 const DEFAULT_SUMMARY_TEXT = [
   'In this meeting, the team discussed Marketing Strategy for Q4, focusing on preparing for the new product launch at the end of the year, which is a key period for generating sales.',
@@ -37,8 +38,11 @@ const Summary: React.FC = () => {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
   const [isEditing, setIsEditing] = React.useState(false);
   const [summaryText, setSummaryText] = React.useState(() => (meetingId ? '' : DEFAULT_SUMMARY_TEXT));
-  const [transcriptStatus, setTranscriptStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
-  const [transcriptError, setTranscriptError] = React.useState<string | null>(null);
+  const [summaryStatus, setSummaryStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [summaryError, setSummaryError] = React.useState<string | null>(null);
+  const [keywords, setKeywords] = React.useState<KeywordItem[]>([]);
+  const [keywordsStatus, setKeywordsStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const [keywordsError, setKeywordsError] = React.useState<string | null>(null);
   const summaryTextAreaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const hasUserEditedRef = React.useRef(false);
 
@@ -46,41 +50,44 @@ const Summary: React.FC = () => {
     hasUserEditedRef.current = false;
     if (!meetingId) {
       setSummaryText(DEFAULT_SUMMARY_TEXT);
-      setTranscriptStatus('idle');
-      setTranscriptError(null);
+      setSummaryStatus('idle');
+      setSummaryError(null);
+      setKeywords([]);
+      setKeywordsStatus('idle');
+      setKeywordsError(null);
       return;
     }
 
     setSummaryText('');
-    setTranscriptStatus('loading');
-    setTranscriptError(null);
+    setSummaryStatus('loading');
+    setSummaryError(null);
 
     let isActive = true;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-    const pollTranscript = async () => {
+    const pollSummary = async () => {
       if (!isActive) return;
       try {
-        const transcriptUrl = apiBaseUrl
-          ? new URL(`/api/meetings/${meetingId}/transcript`, apiBaseUrl).toString()
-          : `/api/meetings/${meetingId}/transcript`;
-        const response = await fetch(transcriptUrl);
+        const summaryUrl = apiBaseUrl
+          ? new URL(`/api/meetings/${meetingId}/summary`, apiBaseUrl).toString()
+          : `/api/meetings/${meetingId}/summary`;
+        const response = await fetch(summaryUrl);
         if (!isActive) return;
         if (response.ok) {
-          const payload = (await response.json()) as { content?: string };
-          const nextText = (payload?.content ?? '').trim();
+          const payload = (await response.json()) as { summary?: string };
+          const nextText = (payload?.summary ?? '').trim();
           if (!hasUserEditedRef.current) {
             setSummaryText(nextText);
           }
-          setTranscriptStatus('ready');
-          setTranscriptError(null);
+          setSummaryStatus('ready');
+          setSummaryError(null);
           return;
         }
         if (response.status === 404) {
-          timeoutId = setTimeout(pollTranscript, 4000);
+          timeoutId = setTimeout(pollSummary, 4000);
           return;
         }
-        let detail = 'Failed to load transcript.';
+        let detail = 'Failed to load summary.';
         try {
           const payload = (await response.json()) as { detail?: string };
           if (payload?.detail) {
@@ -92,12 +99,71 @@ const Summary: React.FC = () => {
         throw new Error(detail);
       } catch (error) {
         if (!isActive) return;
-        setTranscriptStatus('error');
-        setTranscriptError(error instanceof Error ? error.message : 'Failed to load transcript.');
+        setSummaryStatus('error');
+        setSummaryError(error instanceof Error ? error.message : 'Failed to load summary.');
       }
     };
 
-    pollTranscript();
+    pollSummary();
+
+    return () => {
+      isActive = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [meetingId, apiBaseUrl]);
+
+  React.useEffect(() => {
+    if (!meetingId) {
+      return;
+    }
+
+    setKeywords([]);
+    setKeywordsStatus('loading');
+    setKeywordsError(null);
+
+    let isActive = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const pollKeywords = async () => {
+      if (!isActive) return;
+      try {
+        const keywordsUrl = apiBaseUrl
+          ? new URL(`/api/meetings/${meetingId}/keywords`, apiBaseUrl).toString()
+          : `/api/meetings/${meetingId}/keywords`;
+        const response = await fetch(keywordsUrl);
+        if (!isActive) return;
+        if (response.ok) {
+          const payload = (await response.json()) as KeywordItem[];
+          if (!isActive) return;
+          setKeywords(Array.isArray(payload) ? payload : []);
+          setKeywordsStatus('ready');
+          setKeywordsError(null);
+          return;
+        }
+        if (response.status === 404) {
+          timeoutId = setTimeout(pollKeywords, 4000);
+          return;
+        }
+        let detail = 'Failed to load keywords.';
+        try {
+          const payload = (await response.json()) as { detail?: string };
+          if (payload?.detail) {
+            detail = payload.detail;
+          }
+        } catch {
+          // Keep default detail message.
+        }
+        throw new Error(detail);
+      } catch (error) {
+        if (!isActive) return;
+        setKeywordsStatus('error');
+        setKeywordsError(error instanceof Error ? error.message : 'Failed to load keywords.');
+      }
+    };
+
+    pollKeywords();
 
     return () => {
       isActive = false;
@@ -115,56 +181,64 @@ const Summary: React.FC = () => {
   }, [isEditing]);
 
   const displayText = summaryText || (!meetingId ? DEFAULT_SUMMARY_TEXT : '');
-  const isWaitingForTranscript = Boolean(meetingId) && transcriptStatus === 'loading' && !summaryText;
-  const showTranscriptError = Boolean(meetingId) && transcriptStatus === 'error';
-  const showEmptyTranscript = Boolean(meetingId) && transcriptStatus === 'ready' && !summaryText;
+  const isWaitingForSummary = Boolean(meetingId) && summaryStatus === 'loading' && !summaryText;
+  const showSummaryError = Boolean(meetingId) && summaryStatus === 'error';
+  const showEmptySummary = Boolean(meetingId) && summaryStatus === 'ready' && !summaryText;
+  const displayKeywords = React.useMemo(() => {
+    if (keywords.length > 0) return keywords;
+    return !meetingId ? fallbackKeywords : [];
+  }, [keywords, meetingId]);
 
-  const keywords = [
-    {
-      label: 'Strategy',
-      percent: '45%',
-      term: 'Marketing Strategy',
-      cardClass: 'bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 border-blue-100 dark:border-blue-800',
-      labelClass: 'text-blue-600 dark:text-blue-300',
-      percentClass: 'text-blue-400 dark:text-blue-500',
-      barBgClass: 'bg-blue-100 dark:bg-blue-900',
-      barFillClass: 'bg-blue-500 w-[45%]',
-      termClass: 'group-hover:text-blue-700 dark:group-hover:text-blue-200',
+  const escapeRegex = React.useCallback((value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), []);
+  const normalizeMatchValue = React.useCallback(
+    (value: string) =>
+      value
+        .normalize('NFC')
+        .toLowerCase()
+        .replace(/[^0-9a-z\u0E00-\u0E7F]+/gi, ''),
+    [],
+  );
+
+  const highlightKeywords = React.useCallback(
+    (text: string) => {
+      if (!displayKeywords.length) return text;
+      const terms = displayKeywords
+        .map((item) => (item.term ?? '').toString().trim())
+        .filter(Boolean);
+      if (!terms.length) return text;
+      const paletteByTerm = new Map<string, string>();
+      const normalizedEntries: { key: string; pattern: string; length: number }[] = [];
+
+      terms.forEach((term, index) => {
+        const normalizedTerm = normalizeMatchValue(term);
+        if (!normalizedTerm) return;
+        if (paletteByTerm.has(normalizedTerm)) return;
+        const chars = Array.from(normalizedTerm);
+        const pattern = chars.map((char) => escapeRegex(char)).join('[\\s\\p{P}]*');
+        if (!pattern) return;
+        paletteByTerm.set(normalizedTerm, keywordPalette[index % keywordPalette.length].termHighlightClass);
+        normalizedEntries.push({ key: normalizedTerm, pattern, length: normalizedTerm.length });
+      });
+
+      if (!normalizedEntries.length) return text;
+      normalizedEntries.sort((a, b) => b.length - a.length);
+      const regex = new RegExp(`(${normalizedEntries.map((entry) => entry.pattern).join('|')})`, 'giu');
+      return text.split(regex).map((part, index) => {
+        const normalizedPart = normalizeMatchValue(part);
+        const paletteClass = paletteByTerm.get(normalizedPart);
+        if (!paletteClass) return part;
+        return (
+          <span
+            key={`${part}-${index}`}
+            className={`inline-flex items-center rounded-md px-2 py-0.5 font-semibold ${paletteClass}`}
+          >
+            {part}
+          </span>
+        );
+      });
     },
-    {
-      label: 'Finance',
-      percent: '30%',
-      term: 'Budget',
-      cardClass: 'bg-yellow-50 dark:bg-yellow-900/20 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 border-yellow-100 dark:border-yellow-800',
-      labelClass: 'text-yellow-600 dark:text-yellow-300',
-      percentClass: 'text-yellow-500 dark:text-yellow-500',
-      barBgClass: 'bg-yellow-100 dark:bg-yellow-900',
-      barFillClass: 'bg-yellow-500 w-[30%]',
-      termClass: 'group-hover:text-yellow-700 dark:group-hover:text-yellow-200',
-    },
-    {
-      label: 'Product',
-      percent: '60%',
-      term: 'Project Alpha',
-      cardClass: 'bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/40 border-green-100 dark:border-green-800',
-      labelClass: 'text-green-600 dark:text-green-300',
-      percentClass: 'text-green-500 dark:text-green-500',
-      barBgClass: 'bg-green-100 dark:bg-green-900',
-      barFillClass: 'bg-green-500 w-[60%]',
-      termClass: 'group-hover:text-green-700 dark:group-hover:text-green-200',
-    },
-    {
-      label: 'Marketing',
-      percent: '25%',
-      term: 'Promotion Campaign',
-      cardClass: 'bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/40 border-purple-100 dark:border-purple-800',
-      labelClass: 'text-purple-600 dark:text-purple-300',
-      percentClass: 'text-purple-400 dark:text-purple-500',
-      barBgClass: 'bg-purple-100 dark:bg-purple-900',
-      barFillClass: 'bg-purple-500 w-[25%]',
-      termClass: 'group-hover:text-purple-700 dark:group-hover:text-purple-200',
-    },
-  ];
+    [displayKeywords, escapeRegex],
+  );
 
   const recentWork = [
     {
@@ -251,79 +325,37 @@ const Summary: React.FC = () => {
                 }}
                 rows={14}
                 className="w-full min-h-[360px] px-5 py-4 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-surface-dark text-secondary dark:text-gray-200 placeholder-slate-400 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none resize-none"
-              />
-            ) : (
-              <article className="prose prose-slate dark:prose-invert max-w-none">
-                {isWaitingForTranscript && (
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Transcribing audio with Fireflies...</p>
-                )}
-                {showTranscriptError && (
-                  <p className="text-sm text-red-500 mb-4">{transcriptError ?? 'Failed to load transcript.'}</p>
-                )}
-                {displayText &&
-                  displayText.split(/\n\s*\n/).map((paragraph, index) => (
-                    <p
-                      key={`${paragraph.slice(0, 24)}-${index}`}
-                      className="text-lg leading-relaxed text-secondary dark:text-gray-200 mb-6"
-                    >
-                      {paragraph}
-                    </p>
-                  ))}
-                {showEmptyTranscript && (
-                  <p className="text-sm text-slate-500 dark:text-slate-400">No transcript content available yet.</p>
-                )}
-              </article>
-            )}
-          </div>
-
-          <aside className="w-72 border-l border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/20 p-6 overflow-y-auto hidden lg:block">
-            <div className="mb-6">
-              <h4 className="font-bold text-secondary dark:text-white mb-4 flex items-center">
-                <span className="material-icons-round text-lg mr-2 text-primary">label</span>
-                Keywords
-              </h4>
-              <div className="flex flex-col gap-3">
-                {keywords.map((item) => (
-                  <div
-                    key={item.label}
-                    className={`border rounded-xl p-3 cursor-pointer transition-colors group ${item.cardClass}`}
+            />
+          ) : (
+            <article className="prose prose-slate dark:prose-invert max-w-none">
+              {isWaitingForSummary && (
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Generating meeting summary...</p>
+              )}
+              {showSummaryError && (
+                <p className="text-sm text-red-500 mb-4">{summaryError ?? 'Failed to load summary.'}</p>
+              )}
+              {displayText &&
+                displayText.split(/\n\s*\n/).map((paragraph, index) => (
+                  <p
+                    key={`${paragraph.slice(0, 24)}-${index}`}
+                    className="text-lg leading-relaxed text-secondary dark:text-gray-200 mb-6"
                   >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className={`text-xs font-bold uppercase tracking-wider ${item.labelClass}`}>{item.label}</span>
-                      <span className={`text-xs ${item.percentClass}`}>{item.percent}</span>
-                    </div>
-                    <div className={`h-1.5 w-full rounded-full overflow-hidden ${item.barBgClass}`}>
-                      <div className={`h-full rounded-full ${item.barFillClass}`}></div>
-                    </div>
-                    <p className={`text-sm text-secondary dark:text-gray-300 mt-2 transition-colors ${item.termClass}`}>
-                      {item.term}
-                    </p>
-                  </div>
+                    {highlightKeywords(paragraph)}
+                  </p>
                 ))}
-              </div>
-            </div>
+              {showEmptySummary && (
+                <p className="text-sm text-slate-500 dark:text-slate-400">No summary content available yet.</p>
+              )}
+            </article>
+          )}
+        </div>
 
-            <div>
-              <h4 className="font-bold text-secondary dark:text-white mb-4 flex items-center">
-                <span className="material-icons-round text-lg mr-2 text-primary">bar_chart</span>
-                Sentiment
-              </h4>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="material-icons-round text-green-500 text-sm">sentiment_satisfied_alt</span>
-                <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-green-500 w-[70%]"></div>
-                </div>
-                <span className="text-xs text-slate-400 dark:text-slate-500">70%</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="material-icons-round text-red-400 text-sm">sentiment_dissatisfied</span>
-                <div className="flex-1 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-400 w-[10%]"></div>
-                </div>
-                <span className="text-xs text-slate-400 dark:text-slate-500">10%</span>
-              </div>
-            </div>
-          </aside>
+          <Keywords
+            items={keywords}
+            status={keywordsStatus}
+            errorMessage={keywordsError}
+            showPlaceholder={!meetingId}
+          />
         </div>
 
         <div className="p-5 md:p-6 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-surface-dark flex justify-end gap-3">
