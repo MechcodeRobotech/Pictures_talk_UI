@@ -61,12 +61,14 @@ const Home: React.FC = () => {
       const data = await new Promise<{ meeting_id?: number }>((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('title', file.name); // Use filename as title
         formData.append('user_id', '1'); // TODO: replace with authenticated user id.
+        formData.append('custom_language', 'th'); // Set language to Thai for Fireflies processing
 
         const xhr = new XMLHttpRequest();
         const uploadUrl = apiBaseUrl
-          ? new URL('/api/meetings/upload', apiBaseUrl).toString()
-          : '/api/meetings/upload';
+          ? new URL('/api/fireflies/upload-video', apiBaseUrl).toString()
+          : '/api/fireflies/upload-video';
         xhr.open('POST', uploadUrl);
 
         xhr.upload.addEventListener('progress', (event) => {
