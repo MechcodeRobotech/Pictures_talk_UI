@@ -1,9 +1,8 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { useLanguage } from '../LanguageContext';
-import LanguageSwitcher from './Common/Language';
-import ThemeToggle from './Common/Theme';
+import { useLanguage } from '../../LanguageContext';
+import LanguageSwitcher from './Language';
+import ThemeToggle from './Theme';
 
 interface HeaderProps {
   toggleTheme: () => void;
