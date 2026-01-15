@@ -18,6 +18,7 @@ const Home: React.FC = () => {
   const [uploadPercent, setUploadPercent] = useState(0);
   const storageKey = 'summaryResults';
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
+  const userPlan = (import.meta.env.VITE_USER_PLAN as string | undefined) ?? '';
 
   const saveSummaryResult = (resultId: string, name: string) => {
     try {
@@ -64,6 +65,9 @@ const Home: React.FC = () => {
         formData.append('title', file.name); // Use filename as title
         formData.append('user_id', '1'); // TODO: replace with authenticated user id.
         formData.append('custom_language', 'th'); // Set language to Thai for Fireflies processing
+        if (userPlan) {
+          formData.append('user_plan', userPlan);
+        }
 
         const xhr = new XMLHttpRequest();
         const uploadUrl = apiBaseUrl

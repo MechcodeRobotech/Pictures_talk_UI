@@ -1,17 +1,17 @@
 import React from 'react';
 
-const ALLOWED_EXTS = ['.mp4', '.mov', '.webm', '.mp3'] as const;
+const ALLOWED_EXTS = ['.mp4', '.ogg'] as const;
 const ALLOWED_TYPES = [
   'video/mp4',
-  'video/quicktime',
-  'video/webm',
-  'audio/mpeg',
-  'audio/mp3',
-  'audio/mpeg3',
-  'audio/x-mp3',
-  'audio/x-mpeg',
+  'video/ogg',
+  'application/ogg',
 ] as const;
-const MAX_SIZE_BYTES = 200 * 1024 * 1024;
+const MIN_SIZE_BYTES = 50 * 1024;
+const MAX_VIDEO_SIZE_FREE_BYTES = 100 * 1024 * 1024;
+const MAX_VIDEO_SIZE_PRO_BYTES = Math.round(1.5 * 1024 * 1024 * 1024);
+const USER_PLAN = (import.meta.env.VITE_USER_PLAN || '').toLowerCase();
+const IS_PRO_PLAN = ['pro', 'business', 'enterprise'].includes(USER_PLAN);
+const MAX_SIZE_BYTES = IS_PRO_PLAN ? MAX_VIDEO_SIZE_PRO_BYTES : MAX_VIDEO_SIZE_FREE_BYTES;
 
 type VideoButtonProps = {
   label: string;
@@ -35,6 +35,9 @@ const VideoButton: React.FC<VideoButtonProps> = ({
     const normalizedType = file.type.toLowerCase().split(';')[0];
     if (normalizedType && !ALLOWED_TYPES.includes(normalizedType as (typeof ALLOWED_TYPES)[number])) {
       return `Unsupported file type: ${file.type || 'unknown'}`;
+    }
+    if (file.size < MIN_SIZE_BYTES) {
+      return `File size must be at least ${Math.round(MIN_SIZE_BYTES / 1024)}KB`;
     }
     if (file.size > MAX_SIZE_BYTES) {
       return `File size exceeds ${Math.round(MAX_SIZE_BYTES / (1024 * 1024))}MB limit`;

@@ -1,7 +1,9 @@
 import React, { useRef, useState } from 'react';
 
-const ALLOWED_EXTS = ['.mp3', '.wav', '.m4a', '.mp4', '.mov', '.webm'] as const;
-const ALLOWED_TYPES = [
+const AUDIO_EXTS = ['.mp3', '.wav', '.m4a', '.ogg'] as const;
+const VIDEO_EXTS = ['.mp4'] as const;
+const ALLOWED_EXTS = [...AUDIO_EXTS, ...VIDEO_EXTS] as const;
+const AUDIO_TYPES = [
   'audio/mpeg',
   'audio/mp3',
   'audio/mpeg3',
@@ -10,12 +12,19 @@ const ALLOWED_TYPES = [
   'audio/wav',
   'audio/x-wav',
   'audio/mp4',
-  'audio/webm',
-  'video/mp4',
-  'video/quicktime',
-  'video/webm',
+  'audio/ogg',
 ] as const;
-const MAX_SIZE_BYTES = 200 * 1024 * 1024;
+const VIDEO_TYPES = [
+  'video/mp4',
+  'video/ogg',
+] as const;
+const ALLOWED_TYPES = [...AUDIO_TYPES, ...VIDEO_TYPES, 'application/ogg'] as const;
+const MIN_SIZE_BYTES = 50 * 1024;
+const MAX_AUDIO_SIZE_BYTES = 200 * 1024 * 1024;
+const MAX_VIDEO_SIZE_FREE_BYTES = 100 * 1024 * 1024;
+const MAX_VIDEO_SIZE_PRO_BYTES = Math.round(1.5 * 1024 * 1024 * 1024);
+const USER_PLAN = (import.meta.env.VITE_USER_PLAN || '').toLowerCase();
+const IS_PRO_PLAN = ['pro', 'business', 'enterprise'].includes(USER_PLAN);
 const CHUNK_SIZE = 1024 * 1024;
 const UPLOAD_DIR = 'uploads';
 
@@ -48,8 +57,19 @@ const DragDropUpload: React.FC<DragDropUploadProps> = ({
     if (normalizedType && !ALLOWED_TYPES.includes(normalizedType as (typeof ALLOWED_TYPES)[number])) {
       return `Unsupported file type: ${file.type || 'unknown'}`;
     }
-    if (file.size > MAX_SIZE_BYTES) {
-      return `File size exceeds ${Math.round(MAX_SIZE_BYTES / (1024 * 1024))}MB limit`;
+    if (file.size < MIN_SIZE_BYTES) {
+      return `File size must be at least ${Math.round(MIN_SIZE_BYTES / 1024)}KB`;
+    }
+    const isVideoFile =
+      normalizedType.startsWith('video/') ||
+      VIDEO_EXTS.includes(extension as (typeof VIDEO_EXTS)[number]);
+    const maxSizeBytes = isVideoFile
+      ? IS_PRO_PLAN
+        ? MAX_VIDEO_SIZE_PRO_BYTES
+        : MAX_VIDEO_SIZE_FREE_BYTES
+      : MAX_AUDIO_SIZE_BYTES;
+    if (file.size > maxSizeBytes) {
+      return `File size exceeds ${Math.round(maxSizeBytes / (1024 * 1024))}MB limit`;
     }
     return null;
   };
