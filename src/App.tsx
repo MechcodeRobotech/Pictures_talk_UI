@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -17,6 +18,7 @@ const AppContent: React.FC<{ isDarkMode: boolean; toggleTheme: () => void }> = (
   const location = useLocation();
   const isCanvasPage = location.pathname === '/canvas';
   const isLoginPage = location.pathname === '/login';
+  const isSsoCallbackPage = location.pathname === '/sso-callback';
 
   // If it's a full-screen page like Canvas or Login, we don't show the standard sidebar/header layout
   if (isCanvasPage) {
@@ -25,6 +27,10 @@ const AppContent: React.FC<{ isDarkMode: boolean; toggleTheme: () => void }> = (
 
   if (isLoginPage) {
     return <Login isDarkMode={isDarkMode} toggleTheme={toggleTheme} />;
+  }
+
+  if (isSsoCallbackPage) {
+    return <AuthenticateWithRedirectCallback />;
   }
 
   return (

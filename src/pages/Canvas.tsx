@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 import { Tool, Lang, Theme } from '../types';
+import ThemeToggle from '../components/Common/Theme';
 import { TRANSLATIONS, COLORS } from './constants';
 
 interface CanvasProps {
@@ -252,11 +253,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
             </span>
           </button>
 
-          <button onClick={toggleTheme} className="p-2.5 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-all active:scale-90">
-            <span className="material-symbols-outlined text-[20px]">
-              {theme === 'dark' ? 'light_mode' : 'dark_mode'}
-            </span>
-          </button>
+          <ThemeToggle isDarkMode={isDarkMode} toggleTheme={toggleTheme} variant="canvas" />
           
           <button 
             onClick={() => setGlobalLang(lang === 'en' ? 'th' : 'en')} 

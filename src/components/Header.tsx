@@ -1,7 +1,9 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
+import LanguageSwitcher from './Common/Language';
+import ThemeToggle from './Common/Theme';
 
 interface HeaderProps {
   toggleTheme: () => void;
@@ -9,8 +11,7 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ toggleTheme, isDarkMode }) => {
-  const { language, setLanguage, t } = useLanguage();
-  const [isLangOpen, setIsLangOpen] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <header className="h-16 flex items-center justify-between px-4 md:px-8 bg-surface-light dark:bg-surface-dark border-b border-gray-100 dark:border-gray-800 shrink-0 z-20">
@@ -26,42 +27,9 @@ const Header: React.FC<HeaderProps> = ({ toggleTheme, isDarkMode }) => {
       </div>
 
       <div className="flex items-center space-x-4 md:space-x-6">
-        <button
-          onClick={toggleTheme}
-          className="p-2 rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
-        >
-          <span className="material-icons-round text-[24px] relative top-[1px]">
-            {isDarkMode ? 'light_mode' : 'dark_mode'}
-          </span>
-        </button>
+        <ThemeToggle isDarkMode={isDarkMode} toggleTheme={toggleTheme} variant="header" />
 
-        <div className="relative">
-          <button 
-            onClick={() => setIsLangOpen(!isLangOpen)}
-            className="flex items-center space-x-1 text-sm font-medium text-slate-500 dark:text-slate-300 cursor-pointer hover:text-secondary dark:hover:text-white transition-colors"
-          >
-            <span className="material-icons-round text-[24px]">language</span>
-            <span className="hidden xs:inline uppercase">{language === 'en' ? 'English' : 'ไทย'}</span>
-            <span className="material-icons-round text-[24px]">expand_more</span>
-          </button>
-          
-          {isLangOpen && (
-            <div className="absolute right-0 mt-2 w-32 bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-800 rounded-xl shadow-xl overflow-hidden animate-fadeIn">
-              <button 
-                onClick={() => { setLanguage('en'); setIsLangOpen(false); }}
-                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-white/5 ${language === 'en' ? 'text-primary font-bold' : 'text-slate-600 dark:text-slate-400'}`}
-              >
-                English
-              </button>
-              <button 
-                onClick={() => { setLanguage('th'); setIsLangOpen(false); }}
-                className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-50 dark:hover:bg-white/5 ${language === 'th' ? 'text-primary font-bold' : 'text-slate-600 dark:text-slate-400'}`}
-              >
-                ไทย
-              </button>
-            </div>
-          )}
-        </div>
+        <LanguageSwitcher variant="header" />
 
         <Link
           to="/login"
