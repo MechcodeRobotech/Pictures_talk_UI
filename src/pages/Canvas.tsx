@@ -223,7 +223,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
       }`}>
         <div className="flex items-center gap-6">
           <button 
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/home')}
             className="h-10 w-auto flex items-center overflow-hidden transform hover:scale-[1.02] transition-all"
           >
             <img 

@@ -6,12 +6,12 @@ services:
       context: ..
       dockerfile: src/Dockerfile
     ports:
-      - ${NGINX_PORT}:5173
+      - "5173:5173"
     networks:
       - picturetalk_pt-net
     environment:
       - NGINX_PROXY=${NGINX_PROXY}
-      - NGINX_PORT=${NGINX_PORT}
+      - NGINX_PORT=5173
 networks:
   picturetalk_pt-net: # Check by using `docker network ls` command
     external: true

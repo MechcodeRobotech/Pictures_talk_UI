@@ -23,6 +23,7 @@ const translations: Translations = {
   upgrade_now: { en: 'Upgrade Now', th: 'อัปเกรดเลย' },
   search_placeholder: { en: 'Search...', th: 'ค้นหา...' },
   login_signin: { en: 'Login / Sign in', th: 'เข้าสู่ระบบ / ลงชื่อเข้าใช้' },
+  logout: { en: 'Log out', th: 'ออกจากระบบ' },
   
   // Home Page
   welcome_user: { en: 'Welcome back, User!', th: 'ยินดีต้อนรับกลับมา, คุณผู้ใช้!' },

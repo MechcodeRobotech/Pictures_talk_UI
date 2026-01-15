@@ -7,7 +7,7 @@ export default defineConfig(({ mode }) => {
     const apiProxyTarget = env.VITE_API_PROXY_TARGET || 'http://localhost:8000';
     return {
       server: {
-        port: 3000,
+        port: 5173,
         host: '0.0.0.0',
         proxy: {
           '/api': {
