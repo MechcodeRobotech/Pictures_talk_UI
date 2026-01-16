@@ -14,11 +14,11 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ variant = 'header',
   const isHeader = variant === 'header';
 
   const buttonClassName = isHeader
-    ? 'flex items-center space-x-1 text-sm font-medium text-slate-500 dark:text-slate-300 cursor-pointer hover:text-secondary dark:hover:text-white transition-colors'
+    ? 'inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white text-slate-600 text-sm font-semibold border border-slate-200 shadow-[0_10px_20px_rgba(15,23,42,0.08)] hover:text-slate-800 hover:shadow-[0_12px_24px_rgba(15,23,42,0.12)] transition-all dark:bg-[#242526] dark:text-slate-100 dark:border-white/60'
     : 'flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-secondary dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors';
 
   const menuClassName = isHeader
-    ? 'absolute right-0 mt-2 w-32 bg-white dark:bg-surface-dark border border-gray-100 dark:border-gray-800 rounded-xl shadow-xl overflow-hidden animate-fadeIn'
+    ? 'absolute right-0 mt-2 w-36 bg-white border border-gray-100 rounded-2xl shadow-[0_16px_32px_rgba(15,23,42,0.16)] overflow-hidden animate-fadeIn'
     : 'absolute right-0 mt-2 w-32 bg-white dark:bg-surface-dark border border-gray-100 dark:border-white/5 rounded-xl shadow-xl overflow-hidden z-50 animate-fadeIn';
 
   const menuItemClassName = (lang: 'en' | 'th') =>
@@ -32,7 +32,7 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ variant = 'header',
         onClick={() => setIsLangOpen(!isLangOpen)}
         className={buttonClassName}
       >
-        <span className={`material-icons-round ${isHeader ? 'text-[24px]' : 'text-lg'}`}>language</span>
+        <span className={`material-icons-round ${isHeader ? 'text-[20px]' : 'text-lg'}`}>language</span>
         {isHeader ? (
           <span className="hidden xs:inline uppercase">{language === 'en' ? 'English' : 'ไทย'}</span>
         ) : (
@@ -41,7 +41,7 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({ variant = 'header',
             <span className="uppercase xs:hidden">{language}</span>
           </>
         )}
-        <span className={`material-icons-round ${isHeader ? 'text-[24px]' : 'text-base'}`}>expand_more</span>
+        <span className={`material-icons-round transition-transform ${isHeader ? 'text-[20px]' : 'text-base'} ${isLangOpen ? 'rotate-180' : ''}`}>expand_more</span>
       </button>
 
       {isLangOpen && (

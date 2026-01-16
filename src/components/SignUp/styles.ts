@@ -103,52 +103,60 @@ export const BrandText = styled.span`
 export const Actions = styled.div`
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 `;
 
 export const GhostButton = styled.button`
-  border: 1px solid var(--border);
+  border: 1px solid rgba(30, 64, 175, 0.12);
   border-radius: 999px;
-  padding: 8px 14px;
-  background: var(--surface);
-  color: var(--muted);
+  padding: 10px 18px;
+  background: #ffffff;
+  color: #475569;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
 
   span:first-child {
-    font-size: 18px;
+    font-size: 20px;
   }
 
-  &:hover {
-    transform: translateY(-1px);
-    color: var(--text);
-  }
-`;
-
-export const IconButton = styled.button`
-  border: 1px solid var(--border);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--surface);
-  color: var(--muted);
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  span {
+  span:last-child {
     font-size: 20px;
   }
 
   &:hover {
     transform: translateY(-1px);
-    color: var(--text);
+    color: #1f2a44;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+  }
+`;
+
+export const IconButton = styled.button`
+  border: 2px solid #1d4ed8;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #475569;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 10px 22px rgba(29, 78, 216, 0.2);
+
+  span {
+    font-size: 22px;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    color: #1f2a44;
+    box-shadow: 0 12px 26px rgba(29, 78, 216, 0.28);
   }
 `;
 

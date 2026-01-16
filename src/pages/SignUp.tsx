@@ -6,9 +6,9 @@ import {
   Page,
   SignUpFooter,
   SignUpForm,
-  SignUpHeader,
   SignUpSocial,
 } from '../components/SignUp';
+import Header from '../components/Common/Header';
 
 interface SignUpProps {
   isDarkMode?: boolean;
@@ -17,7 +17,7 @@ interface SignUpProps {
 
 const SignUp: React.FC<SignUpProps> = ({ isDarkMode, toggleTheme }) => (
   <Page>
-    <SignUpHeader isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
+    <Header isDarkMode={!!isDarkMode} toggleTheme={toggleTheme ?? (() => {})} />
 
     <Main>
       <Card>
