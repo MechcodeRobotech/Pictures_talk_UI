@@ -4,8 +4,7 @@ import { SignedIn, SignedOut } from '@clerk/clerk-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 import ClerkAuth from '../components/Login/ClerkAuth';
-import LanguageSwitcher from '../components/Common/Language';
-import ThemeToggle from '../components/Common/Theme';
+import Header from '../components/Common/Header';
 
 interface LoginProps {
   isDarkMode?: boolean;
@@ -15,10 +14,6 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ isDarkMode, toggleTheme }) => {
   const { t } = useLanguage();
 
-  // กำหนด URL โลโก้สำหรับแต่ละธีม
-  const logoLight = "/LogoLight.png";
-  const logoDark = "/LogoDark.png";
-
   return (
     <>
       <SignedIn>
@@ -26,25 +21,7 @@ const Login: React.FC<LoginProps> = ({ isDarkMode, toggleTheme }) => {
       </SignedIn>
       <SignedOut>
         <div className="min-h-screen w-full flex flex-col bg-background-light dark:bg-background-dark animate-fadeIn transition-colors duration-300">
-          <header className="w-full px-6 py-8 md:px-12 flex justify-between items-center absolute top-0 z-50">
-            <Link to="/login" className="flex items-center group">
-              <div className="h-10 md:h-14 w-auto flex items-center overflow-hidden transform group-hover:scale-105 transition-transform duration-300">
-                <img
-                  src={isDarkMode ? logoDark : logoLight}
-                  alt="Pictures Talk"
-                  className={`h-full w-auto object-contain transition-all ${isDarkMode ? 'brightness-200 grayscale-0' : ''}`}
-                />
-              </div>
-            </Link>
-
-            <div className="flex items-center gap-2 md:gap-4">
-              {/* Theme Toggle */}
-              <ThemeToggle isDarkMode={!!isDarkMode} toggleTheme={toggleTheme ?? (() => {})} variant="login" />
-
-              {/* Language Switcher */}
-              <LanguageSwitcher variant="login" />
-            </div>
-          </header>
+          <Header isDarkMode={!!isDarkMode} toggleTheme={toggleTheme ?? (() => {})} />
 
           <main className="flex-grow flex items-center justify-center p-4 pt-24">
             <div className="w-full max-w-[460px] bg-white dark:bg-surface-dark shadow-2xl shadow-slate-200/40 dark:shadow-none rounded-[2.5rem] p-8 sm:p-12 border border-white dark:border-white/5 relative overflow-hidden">
