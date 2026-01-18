@@ -16,6 +16,7 @@ const translations: Translations = {
   project: { en: 'Project', th: 'โปรเจกต์' },
   template: { en: 'Template', th: 'เทมเพลต' },
   summary: { en: 'Summary', th: 'สรุป' },
+  canvas: { en: 'Canvas', th: 'ผืนผ้าใบ' },
   results: { en: 'Results', th: 'ผลลัพธ์' },
   result_detail: { en: 'Result Detail', th: 'รายละเอียดผลลัพธ์' },
   upgrade_plan: { en: 'Upgrade Plan', th: 'อัปเกรดแพ็กเกจ' },

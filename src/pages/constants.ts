@@ -11,6 +11,8 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   export: { en: 'Export', th: 'ส่งออก' },
   canvas_title: { en: 'Creative Canvas', th: 'แคนวาสสร้างสรรค์' },
   canvas_desc: { en: 'Your visual playground. Select a tool from the left to start drawing, or use the Gemini AI bar below to generate concepts instantly.', th: 'พื้นที่สร้างสรรค์ของคุณ เลือกเครื่องมือด้านซ้ายเพื่อเริ่มวาด หรือใช้ Gemini AI เพื่อสร้างแนวคิดทันที' },
+  canvas_tool_title: { en: 'Canvas', th: 'ผืนผ้าใบ' },
+  canvas_tool_desc: { en: 'Manage the canvas workspace and layout.', th: 'จัดการพื้นที่ผืนผ้าใบและเลย์เอาต์' },
   properties: { en: 'Properties', th: 'คุณสมบัติ' },
   dimensions: { en: 'Dimensions', th: 'ขนาด' },
   width_short: { en: 'W', th: 'กว้าง' },
