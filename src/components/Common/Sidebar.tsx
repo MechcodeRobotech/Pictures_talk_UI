@@ -1,6 +1,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useClerk } from '@clerk/clerk-react';
+import { useClerk, useUser } from '@clerk/clerk-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../../LanguageContext';
 
@@ -12,6 +12,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useClerk();
+  const { user } = useUser();
   const { t } = useLanguage();
   const [summaryItems, setSummaryItems] = useState<{ id: string; name: string; createdAt: number }[]>([]);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
@@ -50,32 +51,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode }) => {
 
   const summaryChildren = useMemo(() => summaryItems.slice(0, 8), [summaryItems]);
 
-  // กำหนด URL โลโก้สำหรับแต่ละธีม (คุณสามารถเปลี่ยน URL ได้ที่นี่)
-  const logoLight = "/LogoLight.png";
-  
-  // หากมี URL สำหรับ Dark Mode โดยเฉพาะ สามารถนำมาใส่ที่นี่ได้เลยครับ
-  const logoDark = "/LogoDark.png";
-
   const handleLogout = async () => {
     await signOut();
     navigate('/login');
   };
 
   return (
-    <aside className="w-full md:w-64 flex-shrink-0 bg-surface-light dark:bg-surface-dark border-r border-gray-100 dark:border-white/5 flex flex-col h-auto md:h-screen transition-all z-30">
-      <div className="p-6 md:p-8">
-        <Link to="/home" className="flex items-center group">
-          <div className="h-10 w-auto flex items-center overflow-hidden transform group-hover:scale-[1.02] transition-transform duration-300">
-            <img 
-              src={isDarkMode ? logoDark : logoLight} 
-              alt="Pictures Talk" 
-              className={`h-full w-auto object-contain transition-all ${isDarkMode ? 'brightness-200 grayscale-0' : ''}`}
-            />
-          </div>
-        </Link>
-      </div>
-
-      <nav className="mt-2 md:mt-4 px-4 space-y-1.5 flex-grow">
+    <aside className="w-full md:w-64 flex-shrink-0 bg-[#f5f6f6] dark:bg-[#242526] border-r border-gray-100 dark:border-white/5 flex flex-col h-full self-stretch transition-all z-30">
+      <nav className="mt-4 px-4 space-y-1.5 flex-grow">
         {menuItems.map((item) => {
           if (item.path === '/summary') {
             const rowClassName = `flex items-center px-4 py-3 rounded-xl transition-all ${
@@ -140,34 +123,30 @@ const Sidebar: React.FC<SidebarProps> = ({ isDarkMode }) => {
         })}
       </nav>
 
-      <div className="p-4 space-y-6">
-        <div className="bg-amber-50 dark:bg-primary/5 p-4 rounded-2xl border border-amber-100 dark:border-primary/10">
-          <h3 className="text-sm font-bold text-secondary dark:text-white mb-2">{t('upgrade_plan')}</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4 leading-relaxed">{t('upgrade_desc')}</p>
-          <button className="w-full bg-secondary text-white dark:bg-primary dark:text-secondary text-xs font-black py-3 rounded-xl hover:opacity-90 transition-opacity uppercase tracking-wider">
-            {t('upgrade_now')}
-          </button>
-        </div>
-
+      <div className="p-4">
         <div className="pt-2 border-t border-gray-100 dark:border-white/5">
           <div className="flex items-center gap-3 py-1 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 rounded-xl p-2 transition-colors">
             <div className="w-10 h-10 rounded-full overflow-hidden ring-2 ring-gray-100 dark:ring-gray-800 shadow-sm">
               <img
                 alt="Profile"
-                className="w-full h-full object-cover"
-                src="https://picsum.photos/seed/user123/100/100"
+                className="w-full h-full object-contain p-2"
+                src="/person.svg"
               />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-secondary dark:text-white truncate">Jane Doe</p>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">jane@picturestalk.ai</p>
+              <p className="text-sm font-bold text-secondary dark:text-white truncate">
+                {user?.fullName ?? user?.firstName ?? 'user'}
+              </p>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                {user?.primaryEmailAddress?.emailAddress ?? ''}
+              </p>
             </div>
             <span className="material-icons-round text-slate-400 text-xl">more_vert</span>
           </div>
           <button
             type="button"
             onClick={handleLogout}
-            className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl border border-gray-200 dark:border-white/10 py-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors"
+            className="mt-3 w-full flex items-center justify-center gap-2 rounded-xl bg-black text-white py-2 text-xs font-bold uppercase tracking-wider hover:bg-black/90 transition-colors"
           >
             <span className="material-icons-round text-sm">logout</span>
             {t('logout')}

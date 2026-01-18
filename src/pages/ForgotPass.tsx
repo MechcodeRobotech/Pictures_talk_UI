@@ -1,55 +1,243 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth, useSignIn } from '@clerk/clerk-react';
+import Header from '../components/Common/Header';
+
+type ClerkError = {
+  errors?: Array<{ message?: string; longMessage?: string; code?: string }>;
+};
+
+type SignInFactor = {
+  strategy?: string;
+  emailAddressId?: string;
+};
+
+const getClerkError = (error: unknown, fallback: string) => {
+  const firstError =
+    typeof error === 'object' &&
+    error &&
+    'errors' in error &&
+    Array.isArray((error as ClerkError).errors)
+      ? (error as ClerkError).errors?.[0]
+      : null;
+
+  return {
+    code: firstError?.code,
+    message: firstError?.longMessage || firstError?.message || fallback,
+  };
+};
 
 interface ForgotPassProps {
-  isDarkMode?: boolean;
-  toggleTheme?: () => void;
+  isDarkMode: boolean;
+  toggleTheme: () => void;
 }
 
 const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
+  const navigate = useNavigate();
+  const { signIn, isLoaded, setActive } = useSignIn();
+  const { isSignedIn, isLoaded: isAuthLoaded } = useAuth();
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [emailAddressId, setEmailAddressId] = useState<string | null>(null);
+  const [step, setStep] = useState<'request' | 'reset'>('request');
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isAuthLoaded && isSignedIn) {
+      navigate('/home');
+    }
+  }, [isAuthLoaded, isSignedIn, navigate]);
+
+  const validateEmail = (value: string) => /^\S+@\S+\.\S+$/.test(value.trim());
+
+  const handleRequestReset = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setInfo(null);
+
+    if (!validateEmail(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (!isLoaded || !signIn) return;
+
+    setIsSubmitting(true);
+    try {
+      const signInAttempt = await signIn.create({ identifier: email.trim() });
+      const factors = (signInAttempt.supportedFirstFactors || []) as SignInFactor[];
+      const emailFactor = factors.find((factor) => factor.strategy === 'reset_password_email_code')
+        || factors.find((factor) => factor.emailAddressId);
+
+      if (!emailFactor?.emailAddressId) {
+        setError('Unable to locate email address for reset. Please try again.');
+        return;
+      }
+
+      setEmailAddressId(emailFactor.emailAddressId);
+      await signIn.prepareFirstFactor({
+        strategy: 'reset_password_email_code',
+        emailAddressId: emailFactor.emailAddressId,
+      });
+      setStep('reset');
+      setInfo('We sent a verification code to your email.');
+    } catch (err: unknown) {
+      const { message } = getClerkError(err, 'Unable to send reset email. Please try again.');
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResetPassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+
+    if (!code.trim()) {
+      setError('Please enter the verification code.');
+      return;
+    }
+
+    if (newPassword.trim().length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
+
+    if (newPassword.trim() !== confirmPassword.trim()) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (!isLoaded || !signIn) return;
+
+    setIsSubmitting(true);
+    try {
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code: code.trim(),
+        password: newPassword.trim(),
+      });
+
+      if (result.status === 'complete') {
+        if (setActive) {
+          await setActive({ session: result.createdSessionId });
+        }
+        navigate('/home');
+        return;
+      }
+
+      setError('Reset requires additional steps. Please try again.');
+    } catch (err: unknown) {
+      const { message } = getClerkError(err, 'Unable to reset password. Please try again.');
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <Page>
-      <TopBar>
-        <Brand>
-          <BrandIcon aria-hidden="true" className="material-symbols-outlined">auto_awesome</BrandIcon>
-          <BrandText>Pictures Talk</BrandText>
-        </Brand>
-        <Actions>
-          <GhostButton type="button">
-            <span className="material-symbols-outlined" aria-hidden="true">language</span>
-            <span>English</span>
-            <span className="material-symbols-outlined" aria-hidden="true">expand_more</span>
-          </GhostButton>
-          <IconButton
-            type="button"
-            onClick={() => toggleTheme?.()}
-            aria-label="Toggle theme"
-          >
-            <span className="material-symbols-outlined" aria-hidden="true">
-              {isDarkMode ? 'light_mode' : 'dark_mode'}
-            </span>
-          </IconButton>
-        </Actions>
-      </TopBar>
+      <Header isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
 
       <Main>
         <Card>
           <CardHeader>
             <h1>Forgot password?</h1>
-            <p>Enter your email address and we will send you a link to reset your password.</p>
+            <p>
+              {step === 'request'
+                ? 'Enter your email address and we will send you a verification code.'
+                : 'Enter the code from your email and choose a new password.'}
+            </p>
           </CardHeader>
 
-          <Form>
-            <Field>
-              <Label htmlFor="email">Email address</Label>
-              <InputWrap>
-                <InputIcon className="material-symbols-outlined" aria-hidden="true">mail</InputIcon>
-                <Input id="email" name="email" placeholder="name@company.com" type="email" />
-              </InputWrap>
-            </Field>
-            <PrimaryButton type="submit">Send reset link</PrimaryButton>
-          </Form>
+          {step === 'request' ? (
+            <Form onSubmit={handleRequestReset} noValidate>
+              <Field>
+                <Label htmlFor="email">Email address</Label>
+                <InputWrap>
+                  <InputIcon className="material-symbols-outlined" aria-hidden="true">mail</InputIcon>
+                  <Input
+                    id="email"
+                    name="email"
+                    placeholder="name@company.com"
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                  />
+                </InputWrap>
+              </Field>
+
+              {error && <ErrorText role="alert">{error}</ErrorText>}
+              {info && <InfoText role="status">{info}</InfoText>}
+
+              <PrimaryButton type="submit" disabled={!isLoaded || isSubmitting}>
+                {isSubmitting ? 'Sending...' : 'Send reset code'}
+              </PrimaryButton>
+            </Form>
+          ) : (
+            <Form onSubmit={handleResetPassword} noValidate>
+              <Field>
+                <Label htmlFor="code">Verification code</Label>
+                <InputWrap>
+                  <InputIcon className="material-symbols-outlined" aria-hidden="true">pin</InputIcon>
+                  <Input
+                    id="code"
+                    name="code"
+                    placeholder="Enter the code"
+                    type="text"
+                    value={code}
+                    onChange={(event) => setCode(event.target.value)}
+                  />
+                </InputWrap>
+              </Field>
+
+              <Field>
+                <Label htmlFor="newPassword">New password</Label>
+                <InputWrap>
+                  <InputIcon className="material-symbols-outlined" aria-hidden="true">lock</InputIcon>
+                  <Input
+                    id="newPassword"
+                    name="newPassword"
+                    placeholder="********"
+                    type="password"
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                  />
+                </InputWrap>
+              </Field>
+
+              <Field>
+                <Label htmlFor="confirmPassword">Confirm password</Label>
+                <InputWrap>
+                  <InputIcon className="material-symbols-outlined" aria-hidden="true">lock</InputIcon>
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    placeholder="********"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                  />
+                </InputWrap>
+              </Field>
+
+              {error && <ErrorText role="alert">{error}</ErrorText>}
+              {info && <InfoText role="status">{info}</InfoText>}
+
+              <PrimaryButton type="submit" disabled={!isLoaded || isSubmitting || !emailAddressId}>
+                {isSubmitting ? 'Resetting...' : 'Reset password'}
+              </PrimaryButton>
+
+              <InlineLink type="button" onClick={() => setStep('request')}>
+                Use a different email
+              </InlineLink>
+            </Form>
+          )}
 
           <HelperRow>
             <Link to="/login">
@@ -85,7 +273,7 @@ const Page = styled.div`
   --border: rgba(9, 21, 36, 0.08);
   --shadow: 0 26px 65px rgba(15, 40, 68, 0.2);
   min-height: 100vh;
-  padding: 32px 20px 48px;
+  padding: 0 0 48px;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -148,96 +336,6 @@ const Page = styled.div`
       radial-gradient(circle at 12% 8%, rgba(247, 176, 37, 0.2), transparent 52%),
       radial-gradient(circle at 86% 18%, rgba(77, 122, 182, 0.22), transparent 45%),
       linear-gradient(180deg, #0b1016 0%, #121b29 100%);
-  }
-`;
-
-const TopBar = styled.header`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  max-width: 1100px;
-  width: 100%;
-  margin: 0 auto;
-  gap: 20px;
-`;
-
-const Brand = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const BrandIcon = styled.span`
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 14px;
-  background: var(--accent);
-  color: #0d2340;
-  font-size: 24px;
-`;
-
-const BrandText = styled.span`
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--navy);
-  letter-spacing: -0.02em;
-
-  html.dark & {
-    color: #f5f7fa;
-  }
-`;
-
-const Actions = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-`;
-
-const GhostButton = styled.button`
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border 0.2s ease, color 0.2s ease, transform 0.2s ease;
-
-  &:hover {
-    color: var(--accent-strong);
-    transform: translateY(-1px);
-    border-color: rgba(247, 176, 37, 0.4);
-  }
-`;
-
-const IconButton = styled.button`
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: var(--surface-strong);
-  color: var(--muted);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: border 0.2s ease, color 0.2s ease, transform 0.2s ease;
-
-  &:hover {
-    color: var(--accent-strong);
-    border-color: rgba(247, 176, 37, 0.4);
-    transform: translateY(-1px);
-  }
-
-  html.dark & {
-    background: rgba(255, 255, 255, 0.06);
   }
 `;
 
@@ -370,6 +468,37 @@ const PrimaryButton = styled.button`
   &:active {
     transform: translateY(1px);
   }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+`;
+
+const InlineLink = styled.button`
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: var(--accent-strong);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+  justify-self: center;
+`;
+
+const ErrorText = styled.p`
+  margin: 0;
+  font-size: 13px;
+  color: #d14343;
+  font-weight: 600;
+`;
+
+const InfoText = styled.p`
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
 `;
 
 const HelperRow = styled.div`

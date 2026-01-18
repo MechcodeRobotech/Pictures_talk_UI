@@ -2,6 +2,7 @@ import React from 'react';
 import {
   Card,
   CardHeader,
+  Content,
   Main,
   Page,
   SignUpFooter,
@@ -19,19 +20,21 @@ const SignUp: React.FC<SignUpProps> = ({ isDarkMode, toggleTheme }) => (
   <Page>
     <Header isDarkMode={!!isDarkMode} toggleTheme={toggleTheme ?? (() => {})} />
 
-    <Main>
-      <Card>
-        <CardHeader>
-          <h1>Create your account</h1>
-          <p>Enter your details to start generating AI summaries from your pictures.</p>
-        </CardHeader>
+    <Content>
+      <Main>
+        <Card>
+          <CardHeader>
+            <h1>Create your account</h1>
+            <p>Enter your details to start generating AI summaries from your pictures.</p>
+          </CardHeader>
 
-        <SignUpForm />
-        <SignUpSocial />
-      </Card>
-    </Main>
+          <SignUpForm />
+          <SignUpSocial />
+        </Card>
+      </Main>
 
-    <SignUpFooter />
+      <SignUpFooter />
+    </Content>
   </Page>
 );
 

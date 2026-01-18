@@ -11,10 +11,8 @@ export const Page = styled.div`
   --border: rgba(9, 21, 36, 0.08);
   --shadow: 0 24px 60px rgba(15, 40, 68, 0.18);
   min-height: 100vh;
-  padding: 32px 20px 48px;
   display: flex;
   flex-direction: column;
-  gap: 28px;
   background:
     radial-gradient(circle at 10% 0%, rgba(247, 176, 37, 0.25), transparent 50%),
     radial-gradient(circle at 90% 20%, rgba(27, 99, 171, 0.16), transparent 45%),
@@ -166,6 +164,14 @@ export const Main = styled.main`
   align-items: center;
   justify-content: center;
   z-index: 1;
+`;
+
+export const Content = styled.div`
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 32px 20px 48px;
 `;
 
 export const Card = styled.section`

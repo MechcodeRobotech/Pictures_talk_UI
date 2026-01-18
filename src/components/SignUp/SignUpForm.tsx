@@ -1,7 +1,31 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import { useAuth, useSignUp } from '@clerk/clerk-react';
+
+type ClerkError = {
+  errors?: Array<{ message?: string; longMessage?: string; code?: string }>;
+};
+
+const getClerkError = (error: unknown, fallback: string) => {
+  const firstError =
+    typeof error === 'object' &&
+    error &&
+    'errors' in error &&
+    Array.isArray((error as ClerkError).errors)
+      ? (error as ClerkError).errors?.[0]
+      : null;
+
+  return {
+    code: firstError?.code,
+    message: firstError?.longMessage || firstError?.message || fallback,
+  };
+};
 
 const SignUpForm: React.FC = () => {
+  const navigate = useNavigate();
+  const { signUp, isLoaded, setActive } = useSignUp();
+  const { isSignedIn, isLoaded: isAuthLoaded } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formValues, setFormValues] = useState({
     firstName: '',
@@ -10,13 +34,26 @@ const SignUpForm: React.FC = () => {
     password: '',
     terms: false,
   });
+  const [verificationCode, setVerificationCode] = useState('');
+  const [step, setStep] = useState<'form' | 'verify'>('form');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isEmailTaken, setIsEmailTaken] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isAuthLoaded && isSignedIn) {
+      navigate('/home');
+    }
+  }, [isAuthLoaded, isSignedIn, navigate]);
 
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
     setFormValues((prev) => ({ ...prev, [name]: value }));
+    setAuthError(null);
+    setIsEmailTaken(false);
     if (touched[name] || hasSubmitted) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -25,6 +62,8 @@ const SignUpForm: React.FC = () => {
   const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = event.target;
     setFormValues((prev) => ({ ...prev, [name]: checked }));
+    setAuthError(null);
+    setIsEmailTaken(false);
     if (touched[name] || hasSubmitted) {
       setErrors((prev) => ({ ...prev, [name]: undefined }));
     }
@@ -55,7 +94,7 @@ const SignUpForm: React.FC = () => {
     return nextErrors;
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setHasSubmitted(true);
     const nextErrors = validate();
@@ -63,10 +102,104 @@ const SignUpForm: React.FC = () => {
       setErrors(nextErrors);
       return;
     }
+    if (!isLoaded || !signUp) return;
+
     setErrors({});
+    setAuthError(null);
+    setIsEmailTaken(false);
+    setIsSubmitting(true);
+
+    try {
+      const result = await signUp.create({
+        emailAddress: formValues.email,
+        password: formValues.password,
+        firstName: formValues.firstName,
+        lastName: formValues.lastName,
+      });
+
+      if (result.status === 'complete') {
+        if (setActive) {
+          await setActive({ session: result.createdSessionId });
+        }
+        navigate('/home');
+        return;
+      }
+
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      setStep('verify');
+    } catch (error: unknown) {
+      const { message, code } = getClerkError(error, 'Unable to sign up. Please try again.');
+      setIsEmailTaken(code === 'form_identifier_exists' || message.toLowerCase().includes('taken'));
+      setAuthError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleVerifySubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!isLoaded || !signUp) return;
+
+    setAuthError(null);
+    setIsSubmitting(true);
+
+    try {
+      const result = await signUp.attemptEmailAddressVerification({
+        code: verificationCode,
+      });
+
+      if (result.status === 'complete') {
+        if (setActive) {
+          await setActive({ session: result.createdSessionId });
+        }
+        navigate('/home');
+        return;
+      }
+
+      setAuthError('Verification requires additional steps. Please try again.');
+    } catch (error: unknown) {
+      const { message } = getClerkError(error, 'Invalid verification code. Please try again.');
+      setAuthError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const shouldShowError = (field: string) => (hasSubmitted || touched[field]) && Boolean(errors[field]);
+  const isFormComplete = Object.keys(validate()).length === 0;
+  const isVerificationReady = verificationCode.trim().length > 0;
+  const isBusy = isSubmitting;
+
+  if (step === 'verify') {
+    return (
+      <Form onSubmit={handleVerifySubmit} noValidate>
+        <Field>
+          <Label htmlFor="verificationCode">Verification code</Label>
+          <InputWrap>
+            <InputIcon className="material-symbols-outlined" aria-hidden="true">mail</InputIcon>
+            <Input
+              id="verificationCode"
+              name="verificationCode"
+              placeholder="Enter the code from your email"
+              type="text"
+              value={verificationCode}
+              onChange={(event) => {
+                setVerificationCode(event.target.value);
+                setAuthError(null);
+              }}
+              aria-invalid={Boolean(authError)}
+            />
+          </InputWrap>
+        </Field>
+
+        {authError && <ErrorText role="alert">{authError}</ErrorText>}
+
+        <PrimaryButton type="submit" disabled={!isLoaded || isBusy || !isVerificationReady}>
+          {isSubmitting ? 'Verifying...' : 'Verify email'}
+        </PrimaryButton>
+      </Form>
+    );
+  }
 
   return (
     <Form onSubmit={handleSubmit} noValidate>
@@ -180,7 +313,22 @@ const SignUpForm: React.FC = () => {
         {shouldShowError('terms') && <ErrorText id="terms-error">{errors.terms}</ErrorText>}
       </TermsBlock>
 
-      <PrimaryButton type="submit">Sign up</PrimaryButton>
+      {authError && (
+        <>
+          <ErrorText role="alert">{authError}</ErrorText>
+          {isEmailTaken && (
+            <HelperActions>
+              <span>Already have an account?</span>
+              <Link to="/login">Log in</Link>
+              <Link to="/forgot-pass">Forgot password?</Link>
+            </HelperActions>
+          )}
+        </>
+      )}
+
+      <PrimaryButton type="submit" disabled={!isLoaded || isBusy || !isFormComplete}>
+        {isSubmitting ? 'Creating account...' : 'Sign up'}
+      </PrimaryButton>
     </Form>
   );
 };
@@ -272,6 +420,25 @@ const ErrorText = styled.p`
   font-weight: 600;
 `;
 
+const HelperActions = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+
+  a {
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+`;
+
 const TermsBlock = styled.div`
   display: grid;
   gap: 8px;
@@ -320,6 +487,19 @@ const PrimaryButton = styled.button`
   &:hover {
     background: var(--accent-strong);
     transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background: #c7ccd6;
+    color: #6b7280;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  &:disabled:hover {
+    background: #c7ccd6;
+    transform: none;
   }
 `;
 
