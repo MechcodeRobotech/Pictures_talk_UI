@@ -98,7 +98,6 @@ const translations: Translations = {
   untitled: { en: 'Untitled Project', th: 'โปรเจกต์ไม่มีชื่อ' },
   
   // Tools
-  select_title: { en: 'Select', th: 'เลือก' },
   shapes_title: { en: 'Shapes', th: 'รูปทรง' },
   connect_title: { en: 'Connect', th: 'เชื่อมต่อ' },
   pencil_title: { en: 'Pencil', th: 'ดินสอ' },

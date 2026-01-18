@@ -240,6 +240,15 @@ const Summary: React.FC = () => {
     [displayKeywords, escapeRegex],
   );
 
+  const highlightedParagraphs = React.useMemo(() => {
+    if (!displayText) return [];
+    return displayText.split(/\n\s*\n/).map((paragraph, index) => ({
+      id: `${paragraph.slice(0, 24)}-${index}`,
+      text: paragraph,
+      highlighted: highlightKeywords(paragraph),
+    }));
+  }, [displayText, highlightKeywords]);
+
   const recentWork = [
     {
       title: 'UX Design Brainstorming',
@@ -334,15 +343,14 @@ const Summary: React.FC = () => {
               {showSummaryError && (
                 <p className="text-sm text-red-500 mb-4">{summaryError ?? 'Failed to load summary.'}</p>
               )}
-              {displayText &&
-                displayText.split(/\n\s*\n/).map((paragraph, index) => (
-                  <p
-                    key={`${paragraph.slice(0, 24)}-${index}`}
-                    className="text-lg leading-relaxed text-secondary dark:text-gray-200 mb-6"
-                  >
-                    {highlightKeywords(paragraph)}
-                  </p>
-                ))}
+              {highlightedParagraphs.map((item) => (
+                <p
+                  key={item.id}
+                  className="text-lg leading-relaxed text-secondary dark:text-gray-200 mb-6"
+                >
+                  {item.highlighted}
+                </p>
+              ))}
               {showEmptySummary && (
                 <p className="text-sm text-slate-500 dark:text-slate-400">No summary content available yet.</p>
               )}

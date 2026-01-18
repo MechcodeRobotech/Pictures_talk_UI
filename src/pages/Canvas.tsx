@@ -4,11 +4,16 @@ import { Tool, Lang, Theme } from '../types';
 import Header from '../components/Common/Header';
 import Sidebar from '../components/Common/Sidebar';
 import ToolSidebar from '../components/Canvas/ToolSidebar';
-import CanvasStage from '../components/Canvas/CanvasStage';
+import CanvasStage, { CanvasStageHandle } from '../components/Canvas/CanvasStage';
 import PropertiesPanel from '../components/Canvas/PropertiesPanel';
 import IconsTool from '../components/Canvas/Tool/Icons';
 import ImagesTool from '../components/Canvas/Tool/Images';
+import PencilTool from '../components/Canvas/Tool/Pencil';
+import TextTool from '../components/Canvas/Tool/Text';
 import { TRANSLATIONS, COLORS } from './constants';
+
+const DRAG_DATA_KEY = 'application/x-canvas-item';
+const POPUP_OFFSET_Y_PX = -40;
 
 interface CanvasProps {
   isDarkMode: boolean;
@@ -21,10 +26,17 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const [activeTool, setActiveTool] = useState<Tool | null>(null);
   const [showProperties, setShowProperties] = useState(true);
   const [popupPos, setPopupPos] = useState({ top: 0, arrowTop: 0, left: 88 });
-  
+  const [pencilColors, setPencilColors] = useState<string[]>(COLORS);
+  const [pencilColor, setPencilColor] = useState<string>(COLORS[0]);
+  const [pencilStroke, setPencilStroke] = useState<number>(4);
+  const [canvasWidth, setCanvasWidth] = useState<number>(900);
+  const [canvasHeight, setCanvasHeight] = useState<number>(506);
+  const [backgroundColor, setBackgroundColor] = useState<string>(isDarkMode ? '#1e1e1e' : '#ffffff');
+
   const popupRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const toolRefs = useRef<{ [key in Tool]?: HTMLButtonElement | null }>({});
+  const canvasStageRef = useRef<CanvasStageHandle | null>(null);
 
   const theme: Theme = isDarkMode ? 'dark' : 'light';
   const lang: Lang = globalLang as Lang;
@@ -48,7 +60,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
         const headerHeight = 72;
         const windowHeight = window.innerHeight;
 
-        let top = iconCenterY - (popupHeight / 2);
+        let top = iconCenterY - (popupHeight / 2) + POPUP_OFFSET_Y_PX;
 
         if (top < headerHeight) {
           top = headerHeight;
@@ -70,8 +82,8 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
       };
 
       updatePosition();
-      const timeoutId = setTimeout(updatePosition, 10);
-      return () => clearTimeout(timeoutId);
+      const frameId = requestAnimationFrame(updatePosition);
+      return () => cancelAnimationFrame(frameId);
     }
   }, [activeTool]);
 
@@ -97,7 +109,6 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 
   const toolsList = [
     { id: Tool.Canvas, icon: 'draw', title: 'canvas_tool_title', desc: 'canvas_tool_desc' },
-    { id: Tool.Select, icon: 'near_me', title: 'select_title', desc: 'select_desc' },
     { id: Tool.Shapes, icon: 'shapes', title: 'shapes_title', desc: 'shapes_desc' },
     { id: Tool.Connect, icon: 'cable', title: 'connect_title', desc: 'connect_desc' },
     { id: Tool.Pencil, icon: 'edit', title: 'pencil_title', desc: 'pencil_desc' },
@@ -109,6 +120,34 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 
   const handleToolToggle = (tool: Tool) => {
     setActiveTool((current) => (current === tool ? null : tool));
+  };
+
+  const handleDragStart = (event: React.DragEvent, payload: Record<string, string | number>) => {
+    const data = JSON.stringify(payload);
+    event.dataTransfer.setData(DRAG_DATA_KEY, data);
+    event.dataTransfer.setData('text/plain', data);
+    event.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleTextPick = (payload: Record<string, string | number>) => {
+    if (payload.type !== 'text') return;
+    canvasStageRef.current?.addTextAtCenter(payload as { type: 'text'; label: string; size?: number; weight: string });
+  };
+
+  const handleAddPencilColor = (color: string) => {
+    setPencilColors((prev) => {
+      if (prev.some((item) => item.toLowerCase() === color.toLowerCase())) return prev;
+      return [...prev, color];
+    });
+  };
+
+  const handleDimensionChange = (width: number, height: number) => {
+    setCanvasWidth(width);
+    setCanvasHeight(height);
+  };
+
+  const handleBackgroundColorChange = (color: string) => {
+    setBackgroundColor(color);
   };
 
   const renderPopupContent = () => {
@@ -146,26 +185,29 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
         </p>
 
         {activeTool === Tool.Pencil && (
-          <div className="space-y-4 pt-1">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-xs font-semibold text-gray-500 uppercase">{t('stroke')}</div>
-              <div className={`h-9 rounded-lg border flex items-center justify-between px-3 ${theme === 'dark' ? 'bg-black/40 border-white/5' : 'bg-gray-100 border-gray-200'}`}>
-                {[1, 2, 3, 4].map(s => <div key={s} className={`w-${s+1} h-${s+1} bg-gray-400 rounded-full cursor-pointer hover:bg-primary transition-transform hover:scale-125`} />)}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <span className="text-xs font-semibold text-gray-500 uppercase">{t('color')}</span>
-              <div className="flex gap-2.5">
-                {COLORS.map((c, i) => <button key={i} style={{backgroundColor: c}} className="size-7 rounded-full transition-transform hover:scale-110 shadow-sm" />)}
-              </div>
-            </div>
-          </div>
+          <PencilTool
+            theme={theme}
+            t={t}
+            colors={pencilColors}
+            activeColor={pencilColor}
+            activeStroke={pencilStroke}
+            onColorChange={setPencilColor}
+            onStrokeChange={setPencilStroke}
+            onAddColor={handleAddPencilColor}
+          />
         )}
 
         {activeTool === Tool.Shapes && (
           <div className="grid grid-cols-4 gap-2 pt-1">
             {['square', 'circle', 'change_history', 'star', 'pentagon', 'hexagon', 'diamond', 'rectangle'].map((s, i) => (
-              <button key={i} className={`h-12 flex items-center justify-center rounded-lg border transition-all ${theme === 'dark' ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'}`}>
+              <button
+                key={i}
+                draggable
+                onDragStart={(event) => handleDragStart(event, { type: 'shape', shape: s })}
+                className={`h-12 flex items-center justify-center rounded-lg border transition-all ${
+                  theme === 'dark' ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                } cursor-grab active:cursor-grabbing`}
+              >
                 <span className="material-symbols-outlined text-[20px] text-gray-400">{s}</span>
               </button>
             ))}
@@ -173,18 +215,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
         )}
 
         {activeTool === Tool.Text && (
-          <div className="space-y-2 pt-1">
-            {[
-              { label: 'heading', size: '32px', weight: 'bold' },
-              { label: 'subheading', size: '20px', weight: 'semibold' },
-              { label: 'body_text', size: '14px', weight: 'normal' }
-            ].map((item, idx) => (
-              <button key={idx} className={`w-full text-left p-3 rounded-xl hover:bg-white/5 flex flex-col transition-colors border border-transparent hover:border-white/10 ${theme === 'dark' ? 'text-white' : 'text-navy'}`}>
-                <span className={`text-${idx === 0 ? 'lg' : idx === 1 ? 'base' : 'sm'} font-${item.weight}`}>{t(item.label)}</span>
-                <span className="text-[10px] text-gray-500 uppercase mt-1">{item.size} • {t(item.weight)}</span>
-              </button>
-            ))}
-          </div>
+          <TextTool theme={theme} t={t} onDragStart={handleDragStart} onSelect={handleTextPick} />
         )}
 
         {activeTool === Tool.Icons && <IconsTool theme={theme} t={t} />}
@@ -229,10 +260,17 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
           {renderPopupContent()}
 
           <CanvasStage
+            ref={canvasStageRef}
             theme={theme}
             t={t}
+            activeTool={activeTool}
+            pencilColor={pencilColor}
+            pencilStroke={pencilStroke}
             showProperties={showProperties}
             onToggleProperties={() => setShowProperties(!showProperties)}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
+            backgroundColor={backgroundColor}
           />
 
           <PropertiesPanel
@@ -240,6 +278,11 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
             t={t}
             isOpen={showProperties}
             onClose={() => setShowProperties(false)}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
+            onDimensionChange={handleDimensionChange}
+            backgroundColor={backgroundColor}
+            onBackgroundColorChange={handleBackgroundColorChange}
           />
         </div>
       </div>

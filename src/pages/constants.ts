@@ -28,8 +28,6 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   heading: { en: 'Heading', th: 'หัวข้อ' },
   subheading: { en: 'Subheading', th: 'หัวข้อรอง' },
   body_text: { en: 'Body Text', th: 'เนื้อหา' },
-  select_title: { en: 'Select', th: 'เลือก' },
-  select_desc: { en: 'Move, resize, and edit elements on the canvas.', th: 'เคลื่อนย้าย ปรับขนาด และแก้ไของค์ประกอบบนแคนวาส' },
   shapes_title: { en: 'Shapes', th: 'รูปทรง' },
   shapes_desc: { en: 'Add basic geometric shapes like squares, circles, and triangles.', th: 'เพิ่มรูปทรงพื้นฐาน เช่น สี่เหลี่ยม วงกลม และสามเหลี่ยม' },
   connect_title: { en: 'Connect', th: 'เชื่อมต่อ' },
@@ -48,4 +46,7 @@ export const TRANSLATIONS: Record<string, Record<Lang, string>> = {
   upload_btn: { en: 'Upload Image', th: 'อัปโหลดรูปภาพ' },
   upload_failed: { en: 'Upload failed. Please try again.', th: 'อัปโหลดไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' },
   color: { en: 'Color', th: 'สี' },
+  add_color: { en: 'Add color', th: 'เพิ่มสี' },
+  confirm: { en: 'Confirm', th: 'ยืนยัน' },
+  cancel: { en: 'Cancel', th: 'ยกเลิก' },
 };

@@ -4,6 +4,7 @@ import { Theme } from '../../../types';
 
 const PLACEHOLDER_SLOTS = 6;
 const PLACEHOLDER_ITEMS = Array.from({ length: PLACEHOLDER_SLOTS }, (_, index) => index);
+const DRAG_DATA_KEY = 'application/x-canvas-item';
 
 interface ImagesToolProps {
   theme: Theme;
@@ -44,6 +45,14 @@ const ImagesToolWrapper = styled.div<{ $theme: Theme }>`
     border: none;
     cursor: pointer;
     background: transparent;
+  }
+
+  .tile-button[draggable='true'] {
+    cursor: grab;
+  }
+
+  .tile-button[draggable='true']:active {
+    cursor: grabbing;
   }
 
   .thumb {
@@ -113,7 +122,18 @@ const ImagesTool: React.FC<ImagesToolProps> = ({ theme, t }) => {
     <ImagesToolWrapper $theme={theme}>
       <div className="grid">
         {uploadedImages.map((src, index) => (
-          <button key={`${src}-${index}`} type="button" className="tile tile-button">
+          <button
+            key={`${src}-${index}`}
+            type="button"
+            className="tile tile-button"
+            draggable
+            onDragStart={(event) => {
+              const data = JSON.stringify({ type: 'image', name: `image-${index + 1}`, url: src });
+              event.dataTransfer.setData(DRAG_DATA_KEY, data);
+              event.dataTransfer.setData('text/plain', data);
+              event.dataTransfer.effectAllowed = 'copy';
+            }}
+          >
             <img src={src} alt={t('upload_btn')} className="thumb" />
           </button>
         ))}

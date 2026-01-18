@@ -45,6 +45,8 @@ const LOGOUT_RADIUS_PX = 12;
 const LOGOUT_FONT_SIZE_PX = 12;
 const LOGOUT_ICON_SIZE_PX = 14;
 const LOGOUT_LETTER_SPACING_PX = 0.6;
+const LOGOUT_COLLAPSED_HEIGHT_PX = 44;
+const LOGOUT_COLLAPSED_ICON_SIZE_PX = 18;
 const BASE_TEXT_SIZE_PX = 16;
 const TEXT_SM_SIZE_PX = 14;
 const BREAKPOINT_MD_PX = 768;
@@ -80,7 +82,7 @@ const SidebarContainer = styled.aside`
   flex-shrink: 0;
   height: 100%;
   align-self: stretch;
-  transition: all ${TRANSITION_MS}ms ease;
+  transition: width ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms ease;
   z-index: ${SIDEBAR_Z_INDEX};
   background: ${SIDEBAR_BG_LIGHT};
   border-right: 1px solid ${COLOR_GRAY_100};
@@ -422,7 +424,12 @@ const SidebarContainer = styled.aside`
     }
 
     .logout-button {
-      padding: ${LOGOUT_PADDING_Y_PX}px 0;
+      padding: 0;
+      min-height: ${LOGOUT_COLLAPSED_HEIGHT_PX}px;
+    }
+
+    .logout-icon {
+      font-size: ${LOGOUT_COLLAPSED_ICON_SIZE_PX}px;
     }
   }
 `;

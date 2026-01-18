@@ -19,7 +19,6 @@ export interface TemplateItem {
 
 export enum Tool {
   Canvas = 'canvas',
-  Select = 'select',
   Shapes = 'shapes',
   Connect = 'connect',
   Pencil = 'pencil',
