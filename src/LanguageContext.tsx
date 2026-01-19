@@ -96,6 +96,14 @@ const translations: Translations = {
   need_help: { en: 'Need Help?', th: 'ต้องการความช่วยเหลือ?' },
   export: { en: 'Export', th: 'ส่งออก' },
   untitled: { en: 'Untitled Project', th: 'โปรเจกต์ไม่มีชื่อ' },
+  background: { en: 'Background', th: 'พื้นหลัง' },
+  color: { en: 'Color', th: 'สี' },
+  text_color: { en: 'Text Color', th: 'สีตัวอักษร' },
+  stroke_color: { en: 'Stroke Color', th: 'สีรูปทรง' },
+  custom: { en: 'Custom', th: 'กำหนดเอง' },
+  apply: { en: 'Apply', th: 'นำไปใช้' },
+  changing_text_color: { en: 'Changing text color', th: 'กำลังเปลี่ยนสีตัวอักษร' },
+  changing_shape_stroke_color: { en: 'Changing shape fill color', th: 'กำลังเปลี่ยนสีรูปทรง' },
   
   // Tools
   shapes_title: { en: 'Shapes', th: 'รูปทรง' },

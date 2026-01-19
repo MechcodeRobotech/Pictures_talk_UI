@@ -10,6 +10,7 @@ import IconsTool from '../components/Canvas/Tool/Icons';
 import ImagesTool from '../components/Canvas/Tool/Images';
 import PencilTool from '../components/Canvas/Tool/Pencil';
 import TextTool from '../components/Canvas/Tool/Text';
+import ShapeIcon from '../components/Canvas/Tool/ShapeIcon';
 import { TRANSLATIONS, COLORS } from './constants';
 
 const DRAG_DATA_KEY = 'application/x-canvas-item';
@@ -22,16 +23,133 @@ interface CanvasProps {
 
 const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const { language: globalLang } = useLanguage();
-  
+
   const [activeTool, setActiveTool] = useState<Tool | null>(null);
-  const [showProperties, setShowProperties] = useState(true);
+  const [showProperties, setShowProperties] = useState<boolean>(() => {
+    const saved = localStorage.getItem('showProperties');
+    return saved ? JSON.parse(saved) : true;
+  });
   const [popupPos, setPopupPos] = useState({ top: 0, arrowTop: 0, left: 88 });
-  const [pencilColors, setPencilColors] = useState<string[]>(COLORS);
+  const [pencilColors, setPencilColors] = useState<string[]>(() => {
+    const saved = localStorage.getItem('pencilColors');
+    return saved ? JSON.parse(saved) : COLORS;
+  });
   const [pencilColor, setPencilColor] = useState<string>(COLORS[0]);
   const [pencilStroke, setPencilStroke] = useState<number>(4);
-  const [canvasWidth, setCanvasWidth] = useState<number>(900);
-  const [canvasHeight, setCanvasHeight] = useState<number>(506);
-  const [backgroundColor, setBackgroundColor] = useState<string>(isDarkMode ? '#1e1e1e' : '#ffffff');
+
+  const savedCanvasWidth = localStorage.getItem('canvasWidth');
+  const savedCanvasHeight = localStorage.getItem('canvasHeight');
+  const savedBackgroundColor = localStorage.getItem('backgroundColor');
+  const savedTextColor = localStorage.getItem('textColor');
+  const savedStrokeColor = localStorage.getItem('strokeColor');
+
+  const [canvasWidth, setCanvasWidth] = useState<number>(savedCanvasWidth ? parseInt(savedCanvasWidth) : 900);
+  const [canvasHeight, setCanvasHeight] = useState<number>(savedCanvasHeight ? parseInt(savedCanvasHeight) : 506);
+  const [backgroundColor, setBackgroundColor] = useState<string>(savedBackgroundColor || (isDarkMode ? '#1e1e1e' : '#ffffff'));
+
+  const [strokeColor, setStrokeColor] = useState<string>(savedStrokeColor || (isDarkMode ? '#f8fafc' : '#0f172a'));
+  const [strokeWidth, setStrokeWidth] = useState<number>(2);
+  const [hasSelection, setHasSelection] = useState<boolean>(false);
+  const [selectionFontData, setSelectionFontData] = useState<{
+    fontFamily?: string;
+    fontSize?: number;
+    fontWeight?: string;
+    textAlign?: string;
+  } | null>(null);
+  const [textColor, setTextColor] = useState<string>(savedTextColor || (isDarkMode ? '#ffffff' : '#0f172a'));
+  const [shapeSearch, setShapeSearch] = useState<string>('');
+
+  const shapeCategories = {
+    basic: {
+      id: 'basic',
+      label: 'Basic Shapes',
+      labelTh: 'รูปทรงพื้นฐาน',
+      icon: 'category',
+      shapes: [
+        { name: 'square', label: 'Square', labelTh: 'สี่เหลี่ยม' },
+        { name: 'circle', label: 'Circle', labelTh: 'วงกลม' },
+        { name: 'oval', label: 'Oval', labelTh: 'วงรี' },
+      ]
+    },
+    polygons: {
+      id: 'polygons',
+      label: 'Polygons',
+      labelTh: 'รูปหลายเหลี่ยม',
+      icon: 'pentagon',
+      shapes: [
+        { name: 'change_history', label: 'Triangle', labelTh: 'สามเหลี่ยม' },
+        { name: 'pentagon', label: 'Pentagon', labelTh: 'ห้าเหลี่ยม' },
+      ]
+    },
+    special: {
+      id: 'special',
+      label: 'Special',
+      labelTh: 'รูปทรงพิเศษ',
+      icon: 'star',
+      shapes: [
+        { name: 'star', label: 'Star', labelTh: 'ดาว' },
+        { name: 'heart', label: 'Heart', labelTh: 'หัวใจ' },
+        { name: 'cross', label: 'Cross', labelTh: 'กากบาท' },
+      ]
+    },
+    arrows: {
+      id: 'arrows',
+      label: 'Arrows',
+      labelTh: 'ลูกศร',
+      icon: 'arrow_forward',
+      shapes: [
+        { name: 'arrow', label: 'Arrow', labelTh: 'ลูกศร' },
+        { name: 'arrow_down', label: 'Arrow Down', labelTh: 'ลูกศรลง' },
+        { name: 'arrow_left', label: 'Arrow Left', labelTh: 'ลูกศรซ้าย' },
+        { name: 'arrow_right', label: 'Arrow Right', labelTh: 'ลูกศรขวา' },
+      ]
+    },
+    geometric: {
+      id: 'geometric',
+      label: 'Geometric',
+      labelTh: 'เรขาคณิต',
+      icon: 'change_history',
+      shapes: [
+        { name: 'parallelogram', label: 'Parallelogram', labelTh: 'สี่เหลี่ยมคู่ขนาน' },
+        { name: 'trapezoid', label: 'Trapezoid', labelTh: 'สี่เหลี่ยมด้านไม่เท่า' },
+        { name: 'inverted_trapezoid', label: 'Inv. Trapezoid', labelTh: 'สี่เหลี่ยมกลับ' },
+      ]
+    },
+    symbols: {
+      id: 'symbols',
+      label: 'Symbols',
+      labelTh: 'สัญลักษณ์',
+      icon: 'radio_button_unchecked',
+      shapes: [
+        { name: 'plus', label: 'Plus', labelTh: 'บวก' },
+        { name: 'minus', label: 'Minus', labelTh: 'ลบ' },
+        { name: 'frame', label: 'Frame', labelTh: 'กรอบ' },
+        { name: 'rounded_frame', label: 'Rounded Frame', labelTh: 'กรอมุมมน' },
+        { name: 'check', label: 'Check', labelTh: 'เช็ค' },
+        { name: 'x_mark', label: 'X Mark', labelTh: 'กากบาท X' },
+        { name: 'circle_mark', label: 'Circle Mark', labelTh: 'วงกลม' },
+        { name: 'dot', label: 'Dot', labelTh: 'จุด' },
+      ]
+    }
+  };
+
+  const [selectedCategory, setSelectedCategory] = useState<string>(() => {
+    const saved = localStorage.getItem('selectedCategory');
+    return saved || 'basic';
+  });
+
+  const filteredShapes = () => {
+    const category = shapeCategories[selectedCategory as keyof typeof shapeCategories];
+    if (!category) return [];
+
+    const searchLower = shapeSearch.toLowerCase().trim();
+
+    return category.shapes.filter(shape =>
+      shape.label.toLowerCase().includes(searchLower) ||
+      shape.labelTh.includes(shapeSearch) ||
+      shape.name.toLowerCase().includes(searchLower)
+    );
+  };
 
   const popupRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -95,7 +213,9 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
         sidebarRef.current &&
         !sidebarRef.current.contains(event.target as Node)
       ) {
-        setActiveTool(null);
+        if (activeTool !== Tool.Pencil) {
+          setActiveTool(null);
+        }
       }
     };
 
@@ -105,10 +225,9 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
       document.removeEventListener('mousedown', handleClickOutside);
       window.removeEventListener('resize', () => setActiveTool(null));
     };
-  }, []);
+  }, [activeTool]);
 
   const toolsList = [
-    { id: Tool.Canvas, icon: 'draw', title: 'canvas_tool_title', desc: 'canvas_tool_desc' },
     { id: Tool.Shapes, icon: 'shapes', title: 'shapes_title', desc: 'shapes_desc' },
     { id: Tool.Connect, icon: 'cable', title: 'connect_title', desc: 'connect_desc' },
     { id: Tool.Pencil, icon: 'edit', title: 'pencil_title', desc: 'pencil_desc' },
@@ -122,6 +241,14 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     setActiveTool((current) => (current === tool ? null : tool));
   };
 
+  useEffect(() => {
+    localStorage.setItem('showProperties', JSON.stringify(showProperties));
+  }, [showProperties]);
+
+  useEffect(() => {
+    localStorage.setItem('selectedCategory', selectedCategory);
+  }, [selectedCategory]);
+
   const handleDragStart = (event: React.DragEvent, payload: Record<string, string | number>) => {
     const data = JSON.stringify(payload);
     event.dataTransfer.setData(DRAG_DATA_KEY, data);
@@ -134,21 +261,91 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     canvasStageRef.current?.addTextAtCenter(payload as { type: 'text'; label: string; size?: number; weight: string });
   };
 
+  const handleImagePick = (payload: { type: 'image'; url: string; name: string }) => {
+    canvasStageRef.current?.addImageAtCenter(payload);
+  };
+
+  const handleIconPick = (payload: { type: 'icon'; url: string; name: string }) => {
+    canvasStageRef.current?.addIconAtCenter(payload);
+  };
+
+  const handleShapePick = (payload: { type: 'shape'; shape: string }) => {
+    canvasStageRef.current?.addShapeAtCenter(payload);
+  };
+
   const handleAddPencilColor = (color: string) => {
     setPencilColors((prev) => {
       if (prev.some((item) => item.toLowerCase() === color.toLowerCase())) return prev;
-      return [...prev, color];
+      const newColors = [...prev, color];
+      localStorage.setItem('pencilColors', JSON.stringify(newColors));
+      return newColors;
     });
   };
 
   const handleDimensionChange = (width: number, height: number) => {
     setCanvasWidth(width);
     setCanvasHeight(height);
+    localStorage.setItem('canvasWidth', width.toString());
+    localStorage.setItem('canvasHeight', height.toString());
   };
 
   const handleBackgroundColorChange = (color: string) => {
     setBackgroundColor(color);
+    localStorage.setItem('backgroundColor', color);
   };
+
+  // Reset text color when theme changes
+  useEffect(() => {
+    setTextColor(isDarkMode ? '#ffffff' : '#0f172a');
+  }, [isDarkMode]);
+
+  const handleSelectionChange = useCallback(
+    (payload: {
+      hasSelection: boolean;
+      strokeColor: string | null;
+      strokeWidth: number | null;
+      fontData?: {
+        fontFamily?: string;
+        fontSize?: number;
+        fontWeight?: string;
+        textAlign?: string;
+      } | null;
+      textColor?: string | null;
+    }) => {
+      if (payload.hasSelection !== undefined) setHasSelection(payload.hasSelection);
+      if (payload.strokeColor) setStrokeColor(payload.strokeColor);
+      if (payload.strokeWidth !== null) setStrokeWidth(payload.strokeWidth);
+      setSelectionFontData(payload.fontData ?? null);
+      if (payload.textColor) setTextColor(payload.textColor);
+    },
+    [],
+  );
+
+  const handleStrokeChange = useCallback((options: { color?: string; width?: number }) => {
+    if (options.color) {
+      setStrokeColor(options.color);
+      localStorage.setItem('strokeColor', options.color);
+    }
+    if (options.width !== undefined) setStrokeWidth(options.width);
+
+    const updateOptions: { stroke?: string; strokeWidth?: number } = {};
+    if (options.color) updateOptions.stroke = options.color;
+    if (options.width !== undefined) updateOptions.strokeWidth = options.width;
+
+    if (Object.keys(updateOptions).length > 0) {
+      canvasStageRef.current?.updateActiveObjectStroke(updateOptions);
+    }
+  }, []);
+
+  const handleShapeFillChange = useCallback((color: string) => {
+    canvasStageRef.current?.updateActiveObjectFill({ fill: color });
+  }, []);
+
+  const handleTextColorChange = useCallback((color: string) => {
+    setTextColor(color);
+    localStorage.setItem('textColor', color);
+    canvasStageRef.current?.updateActiveObjectFont({ fill: color });
+  }, [canvasStageRef]);
 
   const renderPopupContent = () => {
     if (!activeTool) return null;
@@ -198,19 +395,87 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
         )}
 
         {activeTool === Tool.Shapes && (
-          <div className="grid grid-cols-4 gap-2 pt-1">
-            {['square', 'circle', 'change_history', 'star', 'pentagon', 'hexagon', 'diamond', 'rectangle'].map((s, i) => (
-              <button
-                key={i}
-                draggable
-                onDragStart={(event) => handleDragStart(event, { type: 'shape', shape: s })}
-                className={`h-12 flex items-center justify-center rounded-lg border transition-all ${
-                  theme === 'dark' ? 'bg-white/5 border-white/10 hover:bg-white/10' : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
-                } cursor-grab active:cursor-grabbing`}
-              >
-                <span className="material-symbols-outlined text-[20px] text-gray-400">{s}</span>
-              </button>
-            ))}
+          <div>
+            {/* Category Tabs */}
+            <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
+              {Object.values(shapeCategories).map((category) => (
+                <button
+                  key={category.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCategory(category.id);
+                    setShapeSearch('');
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium whitespace-nowrap transition-all ${
+                    selectedCategory === category.id
+                      ? 'bg-primary text-navy border-primary shadow-sm'
+                      : theme === 'dark'
+                        ? 'bg-transparent border-white/10 text-gray-400 hover:bg-white/5 hover:border-white/20 hover:text-gray-300'
+                        : 'bg-transparent border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-700'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">{category.icon}</span>
+                  <span>{lang === 'th' ? category.labelTh : category.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Search */}
+            <div className="relative mb-3">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">
+                search
+              </span>
+              <input
+                type="text"
+                value={shapeSearch}
+                onChange={(e) => setShapeSearch(e.target.value)}
+                placeholder={`${lang === 'th' ? 'ค้นหา' : 'Search'} ${lang === 'th' ? shapeCategories[selectedCategory as keyof typeof shapeCategories].labelTh : shapeCategories[selectedCategory as keyof typeof shapeCategories].label}...`}
+                className={`w-full pl-10 pr-10 py-2.5 rounded-lg border text-sm transition-all ${
+                  theme === 'dark'
+                    ? 'bg-white/5 border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50'
+                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50'
+                }`}
+              />
+              {shapeSearch && (
+                <button
+                  type="button"
+                  onClick={() => setShapeSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    close
+                  </span>
+                </button>
+              )}
+            </div>
+
+            {/* Shapes Grid */}
+            <div className="grid grid-cols-6 gap-2 pt-1 max-h-[320px] overflow-y-auto pr-1">
+              {filteredShapes().map((shape, i) => (
+                <button
+                  key={i}
+                  draggable
+                  onDragStart={(event) => handleDragStart(event, { type: 'shape', shape: shape.name })}
+                  onClick={() => handleShapePick({ type: 'shape', shape: shape.name })}
+                  title={lang === 'th' ? shape.labelTh : shape.label}
+                  className={`aspect-square flex items-center justify-center rounded-xl border-2 transition-all overflow-hidden group ${
+                    theme === 'dark'
+                      ? 'bg-white/5 border-white/10 hover:border-primary/50 hover:bg-white/10'
+                      : 'bg-gray-50 border-gray-200 hover:border-primary/50 hover:bg-white'
+                  } cursor-grab active:cursor-grabbing`}
+                >
+                  <div className="relative size-10 flex items-center justify-center transition-transform group-hover:scale-110">
+                    <ShapeIcon shape={shape.name} theme={theme} />
+                  </div>
+                </button>
+              ))}
+              {filteredShapes().length === 0 && (
+                <div className={`col-span-6 flex flex-col items-center justify-center py-8 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
+                  <span>{lang === 'th' ? 'ไม่พบรูปทรง' : 'No shapes found'}</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -218,9 +483,9 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
           <TextTool theme={theme} t={t} onDragStart={handleDragStart} onSelect={handleTextPick} />
         )}
 
-        {activeTool === Tool.Icons && <IconsTool theme={theme} t={t} />}
+        {activeTool === Tool.Icons && <IconsTool theme={theme} t={t} onSelect={handleIconPick} />}
 
-        {activeTool === Tool.Images && <ImagesTool theme={theme} t={t} />}
+        {activeTool === Tool.Images && <ImagesTool theme={theme} t={t} onSelect={handleImagePick} />}
 
         {activeTool === Tool.Templates && (
           <div className="grid grid-cols-2 gap-3 pt-1">
@@ -271,6 +536,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
             canvasWidth={canvasWidth}
             canvasHeight={canvasHeight}
             backgroundColor={backgroundColor}
+            onSelectionChange={handleSelectionChange}
           />
 
           <PropertiesPanel
@@ -283,6 +549,15 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
             onDimensionChange={handleDimensionChange}
             backgroundColor={backgroundColor}
             onBackgroundColorChange={handleBackgroundColorChange}
+            strokeColor={strokeColor}
+            strokeWidth={strokeWidth}
+            hasSelection={hasSelection}
+            onStrokeChange={handleStrokeChange}
+            onShapeFillChange={handleShapeFillChange}
+            canvasRef={canvasStageRef}
+            selectionFontData={selectionFontData}
+            textColor={textColor}
+            onTextColorChange={handleTextColorChange}
           />
         </div>
       </div>

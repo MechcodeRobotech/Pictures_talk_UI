@@ -13,9 +13,10 @@ const DRAG_DATA_KEY = 'application/x-canvas-item';
 interface IconsToolProps {
   theme: Theme;
   t: (key: string) => string;
+  onSelect?: (payload: { type: 'icon'; url: string; name: string }) => void;
 }
 
-const IconsTool: React.FC<IconsToolProps> = ({ theme, t }) => {
+const IconsTool: React.FC<IconsToolProps> = ({ theme, t, onSelect }) => {
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
   const [query, setQuery] = useState(DEFAULT_QUERY);
   const [icons, setIcons] = useState<string[]>([]);
@@ -103,6 +104,9 @@ const IconsTool: React.FC<IconsToolProps> = ({ theme, t }) => {
                 event.dataTransfer.setData(DRAG_DATA_KEY, data);
                 event.dataTransfer.setData('text/plain', data);
                 event.dataTransfer.effectAllowed = 'copy';
+              }}
+              onClick={() => {
+                onSelect?.({ type: 'icon', name, url: iconUrl });
               }}
             >
               <img className="iconGlyph" src={iconUrl} alt={name} loading="lazy" />
