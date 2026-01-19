@@ -12,9 +12,12 @@ import PencilTool from '../components/Canvas/Tool/Pencil';
 import TextTool from '../components/Canvas/Tool/Text';
 import ShapeIcon from '../components/Canvas/Tool/ShapeIcon';
 import { TRANSLATIONS, COLORS } from './constants';
+import { getUntitledProjectId, createCanvasDocument, updateCanvasDocument, getCanvasDocument, type CanvasDocument } from '../lib/canvasApi';
 
 const DRAG_DATA_KEY = 'application/x-canvas-item';
 const POPUP_OFFSET_Y_PX = -40;
+const AUTO_SAVE_DEBOUNCE_MS = 3000;
+const AUTO_SAVE_INTERVAL_MS = 30000;
 
 interface CanvasProps {
   isDarkMode: boolean;
@@ -36,6 +39,13 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   });
   const [pencilColor, setPencilColor] = useState<string>(COLORS[0]);
   const [pencilStroke, setPencilStroke] = useState<number>(4);
+
+  // Canvas Document state
+  const [canvasDocumentId, setCanvasDocumentId] = useState<number | null>(() => {
+    const saved = localStorage.getItem('canvasDocumentId');
+    return saved ? parseInt(saved) : null;
+  });
+  const [isLoadingFromBackend, setIsLoadingFromBackend] = useState(false);
 
   const savedCanvasWidth = localStorage.getItem('canvasWidth');
   const savedCanvasHeight = localStorage.getItem('canvasHeight');
@@ -124,7 +134,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
         { name: 'plus', label: 'Plus', labelTh: 'บวก' },
         { name: 'minus', label: 'Minus', labelTh: 'ลบ' },
         { name: 'frame', label: 'Frame', labelTh: 'กรอบ' },
-        { name: 'rounded_frame', label: 'Rounded Frame', labelTh: 'กรอมุมมน' },
+        { name: 'rounded_frame', label: 'Rounded Frame', labelTh: 'กรอบมุมมน' },
         { name: 'check', label: 'Check', labelTh: 'เช็ค' },
         { name: 'x_mark', label: 'X Mark', labelTh: 'กากบาท X' },
         { name: 'circle_mark', label: 'Circle Mark', labelTh: 'วงกลม' },
@@ -138,19 +148,6 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     return saved || 'basic';
   });
 
-  const filteredShapes = () => {
-    const category = shapeCategories[selectedCategory as keyof typeof shapeCategories];
-    if (!category) return [];
-
-    const searchLower = shapeSearch.toLowerCase().trim();
-
-    return category.shapes.filter(shape =>
-      shape.label.toLowerCase().includes(searchLower) ||
-      shape.labelTh.includes(shapeSearch) ||
-      shape.name.toLowerCase().includes(searchLower)
-    );
-  };
-
   const popupRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
   const toolRefs = useRef<{ [key in Tool]?: HTMLButtonElement | null }>({});
@@ -163,6 +160,143 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     return TRANSLATIONS[key]?.[lang] || key;
   }, [lang]);
 
+  // Debounce save
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Save canvas to backend
+  const saveCanvasToBackend = useCallback(async () => {
+    if (!canvasDocumentId || !canvasStageRef.current) return;
+
+    try {
+      const canvasData = canvasStageRef.current.getCanvasData();
+      if (!canvasData) return;
+
+      await updateCanvasDocument(canvasDocumentId, {
+        canvas_width: canvasWidth,
+        canvas_height: canvasHeight,
+        background_color: backgroundColor,
+        canvas_data: canvasData,
+      });
+    } catch (error) {
+      console.error('Error saving canvas to backend:', error);
+    }
+  }, [canvasDocumentId, canvasWidth, canvasHeight, backgroundColor]);
+
+  // Debounced save
+  const scheduleAutoSave = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveCanvasToBackend();
+    }, AUTO_SAVE_DEBOUNCE_MS);
+  }, [saveCanvasToBackend]);
+
+  // Load canvas from backend on mount
+  useEffect(() => {
+    const loadCanvasFromBackend = async () => {
+      if (!canvasDocumentId) {
+        // Create new canvas document
+        try {
+          setIsLoadingFromBackend(true);
+          const projectId = await getUntitledProjectId();
+          const newDocument = await createCanvasDocument({
+            project_id: projectId,
+            canvas_width: canvasWidth,
+            canvas_height: canvasHeight,
+            background_color: backgroundColor,
+            theme,
+            language: lang,
+          });
+          setCanvasDocumentId(newDocument.id);
+          localStorage.setItem('canvasDocumentId', newDocument.id.toString());
+        } catch (error) {
+          console.error('Error creating canvas document:', error);
+          // Fallback to localStorage
+          canvasStageRef.current?.loadCanvas();
+        } finally {
+          setIsLoadingFromBackend(false);
+        }
+        return;
+      }
+
+      // Load existing canvas
+      try {
+        setIsLoadingFromBackend(true);
+        const document = await getCanvasDocument(canvasDocumentId);
+
+        // Update state from backend
+        if (document.canvas_width) {
+          setCanvasWidth(document.canvas_width);
+          localStorage.setItem('canvasWidth', document.canvas_width.toString());
+        }
+        if (document.canvas_height) {
+          setCanvasHeight(document.canvas_height);
+          localStorage.setItem('canvasHeight', document.canvas_height.toString());
+        }
+        if (document.background_color) {
+          setBackgroundColor(document.background_color);
+          localStorage.setItem('backgroundColor', document.background_color);
+        }
+
+        // Load canvas data
+        if (document.canvas_data) {
+          canvasStageRef.current?.loadCanvasFromData(document.canvas_data);
+        } else {
+          canvasStageRef.current?.loadCanvas();
+        }
+      } catch (error) {
+        console.error('Error loading canvas from backend:', error);
+        // Fallback to localStorage
+        canvasStageRef.current?.loadCanvas();
+      } finally {
+        setIsLoadingFromBackend(false);
+      }
+    };
+
+    loadCanvasFromBackend();
+
+    // Setup periodic auto-save
+    autoSaveIntervalRef.current = setInterval(() => {
+      saveCanvasToBackend();
+    }, AUTO_SAVE_INTERVAL_MS);
+
+    return () => {
+      if (autoSaveIntervalRef.current) {
+        clearInterval(autoSaveIntervalRef.current);
+      }
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []); // Run only on mount
+
+  // Save on dimension change
+  useEffect(() => {
+    localStorage.setItem('canvasWidth', canvasWidth.toString());
+    localStorage.setItem('canvasHeight', canvasHeight.toString());
+    scheduleAutoSave();
+  }, [canvasWidth, canvasHeight, scheduleAutoSave]);
+
+  // Save on background color change
+  useEffect(() => {
+    localStorage.setItem('backgroundColor', backgroundColor);
+    scheduleAutoSave();
+  }, [backgroundColor, scheduleAutoSave]);
+
+  // Save on any canvas change (triggered by canvas stage)
+  useEffect(() => {
+    const handleCanvasChange = () => {
+      scheduleAutoSave();
+    };
+
+    // Listen for canvas changes
+    // This will be triggered by canvas stage
+    window.addEventListener('canvas-change', handleCanvasChange);
+    return () => window.removeEventListener('canvas-change', handleCanvasChange);
+  }, [scheduleAutoSave]);
+
   useEffect(() => {
     if (activeTool && toolRefs.current[activeTool]) {
       const button = toolRefs.current[activeTool];
@@ -172,7 +306,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
         const rect = button.getBoundingClientRect();
         const iconCenterY = rect.top + rect.height / 2;
         const sidebarRect = sidebarRef.current?.getBoundingClientRect();
-        
+
         const popupHeight = popupRef.current?.offsetHeight || 380;
         const margin = 16;
         const headerHeight = 72;
@@ -208,7 +342,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        popupRef.current && 
+        popupRef.current &&
         !popupRef.current.contains(event.target as Node) &&
         sidebarRef.current &&
         !sidebarRef.current.contains(event.target as Node)
@@ -259,18 +393,22 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const handleTextPick = (payload: Record<string, string | number>) => {
     if (payload.type !== 'text') return;
     canvasStageRef.current?.addTextAtCenter(payload as { type: 'text'; label: string; size?: number; weight: string });
+    scheduleAutoSave();
   };
 
   const handleImagePick = (payload: { type: 'image'; url: string; name: string }) => {
     canvasStageRef.current?.addImageAtCenter(payload);
+    scheduleAutoSave();
   };
 
   const handleIconPick = (payload: { type: 'icon'; url: string; name: string }) => {
     canvasStageRef.current?.addIconAtCenter(payload);
+    scheduleAutoSave();
   };
 
   const handleShapePick = (payload: { type: 'shape'; shape: string }) => {
     canvasStageRef.current?.addShapeAtCenter(payload);
+    scheduleAutoSave();
   };
 
   const handleAddPencilColor = (color: string) => {
@@ -285,13 +423,12 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const handleDimensionChange = (width: number, height: number) => {
     setCanvasWidth(width);
     setCanvasHeight(height);
-    localStorage.setItem('canvasWidth', width.toString());
-    localStorage.setItem('canvasHeight', height.toString());
+    scheduleAutoSave();
   };
 
   const handleBackgroundColorChange = (color: string) => {
     setBackgroundColor(color);
-    localStorage.setItem('backgroundColor', color);
+    scheduleAutoSave();
   };
 
   // Reset text color when theme changes
@@ -335,17 +472,33 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     if (Object.keys(updateOptions).length > 0) {
       canvasStageRef.current?.updateActiveObjectStroke(updateOptions);
     }
-  }, []);
+    scheduleAutoSave();
+  }, [scheduleAutoSave]);
 
   const handleShapeFillChange = useCallback((color: string) => {
     canvasStageRef.current?.updateActiveObjectFill({ fill: color });
-  }, []);
+    scheduleAutoSave();
+  }, [scheduleAutoSave]);
 
   const handleTextColorChange = useCallback((color: string) => {
     setTextColor(color);
     localStorage.setItem('textColor', color);
     canvasStageRef.current?.updateActiveObjectFont({ fill: color });
-  }, [canvasStageRef]);
+    scheduleAutoSave();
+  }, [scheduleAutoSave]);
+
+  const filteredShapes = () => {
+    const category = shapeCategories[selectedCategory as keyof typeof shapeCategories];
+    if (!category) return [];
+
+    const searchLower = shapeSearch.toLowerCase().trim();
+
+    return category.shapes.filter(shape =>
+      shape.label.toLowerCase().includes(searchLower) ||
+      shape.labelTh.includes(shapeSearch) ||
+      shape.name.toLowerCase().includes(searchLower)
+    );
+  };
 
   const renderPopupContent = () => {
     if (!activeTool) return null;
@@ -353,20 +506,20 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     if (!tool) return null;
 
     return (
-      <div 
+      <div
         ref={popupRef}
         className={`fixed z-[100] pointer-events-auto w-80 backdrop-blur-md border rounded-2xl shadow-2xl p-5 flex flex-col gap-4 animate-fadeIn ${
           theme === 'dark' ? 'bg-[#252525]/95 border-white/10' : 'bg-white/95 border-gray-200'
-        }`} 
+        }`}
         style={{ left: `${popupPos.left}px`, top: `${popupPos.top}px` }}
       >
-        <div 
+        <div
           className={`absolute size-4 border-l border-b rotate-45 transition-all duration-300 ${
             theme === 'dark' ? 'bg-[#252525] border-white/10' : 'bg-white border-gray-200'
           }`}
           style={{ top: `${popupPos.arrowTop}px`, left: '-8px' }}
         ></div>
-        
+
         <div className="flex items-start gap-3 pb-3 border-b border-white/10">
           <div className="size-10 rounded-xl bg-primary flex items-center justify-center text-navy shrink-0">
             <span className="material-symbols-outlined filled text-[22px]">{tool.icon}</span>
@@ -376,7 +529,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5">{t('properties')}</p>
           </div>
         </div>
-        
+
         <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
           {t(tool.desc)}
         </p>
