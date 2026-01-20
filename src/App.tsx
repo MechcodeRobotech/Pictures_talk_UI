@@ -52,6 +52,11 @@ const AppContent: React.FC<{ isDarkMode: boolean; toggleTheme: () => void }> = (
         <Sidebar isDarkMode={isDarkMode} />
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <Routes>
+            <Route path="/" element={<Login isDarkMode={isDarkMode} toggleTheme={toggleTheme} />} />
+            <Route path="/login" element={<Login isDarkMode={isDarkMode} toggleTheme={toggleTheme} />} />
+            <Route path="/signup" element={<SignUp isDarkMode={isDarkMode} toggleTheme={toggleTheme} />} />
+            <Route path="/forgot-pass" element={<ForgotPass isDarkMode={isDarkMode} toggleTheme={toggleTheme} />} />
+            <Route path="/sso-callback" element={<AuthenticateWithRedirectCallback />} />
             <Route path="/home" element={<Home />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/templates" element={<Templates />} />
