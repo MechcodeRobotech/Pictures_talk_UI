@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AuthenticateWithRedirectCallback } from '@clerk/clerk-react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Sidebar from './components/Common/Sidebar';
 import Header from './components/Common/Header';
 import Home from './pages/Home';

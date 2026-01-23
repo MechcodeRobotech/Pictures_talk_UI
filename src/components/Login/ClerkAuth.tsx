@@ -52,8 +52,8 @@ const ClerkAuth: React.FC<ClerkAuthProps> = ({ t }) => {
     try {
       await signIn.authenticateWithRedirect({
         strategy,
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/home',
+        redirectUrl: '/#/sso-callback',
+        redirectUrlComplete: '/#/home',
       });
     } catch (error: unknown) {
       const { message } = getClerkError(
