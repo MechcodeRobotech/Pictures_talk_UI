@@ -73,6 +73,10 @@ const Summary: React.FC = () => {
           : `/api/meetings/${meetingId}/summary`;
         const response = await fetch(summaryUrl);
         if (!isActive) return;
+        if (response.status === 202) {
+          timeoutId = setTimeout(pollSummary, 4000);
+          return;
+        }
         if (response.ok) {
           const payload = (await response.json()) as { summary?: string };
           const nextText = (payload?.summary ?? '').trim();
@@ -134,6 +138,10 @@ const Summary: React.FC = () => {
           : `/api/meetings/${meetingId}/keywords`;
         const response = await fetch(keywordsUrl);
         if (!isActive) return;
+        if (response.status === 202) {
+          timeoutId = setTimeout(pollKeywords, 4000);
+          return;
+        }
         if (response.ok) {
           const payload = (await response.json()) as KeywordItem[];
           if (!isActive) return;

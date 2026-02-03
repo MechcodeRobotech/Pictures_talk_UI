@@ -37,6 +37,9 @@ const translations: Translations = {
   uploading: { en: 'Uploading...', th: 'กำลังอัปโหลด...' },
   not_ready: { en: 'Not Ready', th: 'ยังไม่พร้อม' },
   ready: { en: 'Ready', th: 'พร้อมแล้ว' },
+  summary_processing: { en: 'Generating summary... Please wait.', th: 'กำลังสร้างสรุป... กรุณารอสักครู่' },
+  summary_failed: { en: 'Failed to check summary status. Please try again.', th: 'ตรวจสอบสถานะสรุปไม่สำเร็จ กรุณาลองใหม่อีกครั้ง' },
+  summary_not_found: { en: 'Meeting not found for this summary.', th: 'ไม่พบการประชุมสำหรับสรุปนี้' },
 
   // Login Page
   welcome_back: { en: 'Welcome Back', th: 'ยินดีต้อนรับกลับมา' },

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecentWorkItem } from '../types';
 import { useLanguage } from '../LanguageContext';
@@ -16,6 +16,9 @@ const Home: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [uploadPercent, setUploadPercent] = useState(0);
+  const [pendingSummary, setPendingSummary] = useState<{ id: number; resultId: string; fileName: string } | null>(null);
+  const [summaryCheckStatus, setSummaryCheckStatus] = useState<'idle' | 'waiting' | 'error'>('idle');
+  const [summaryCheckMessage, setSummaryCheckMessage] = useState<string | null>(null);
   const storageKey = 'summaryResults';
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
   const userPlan = (import.meta.env.VITE_USER_PLAN as string | undefined) ?? '';
@@ -33,6 +36,84 @@ const Home: React.FC = () => {
       // Ignore storage errors to avoid blocking navigation.
     }
   };
+
+  useEffect(() => {
+    if (!pendingSummary) return;
+    let isActive = true;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const pollSummaryReady = async () => {
+      if (!isActive) return;
+      try {
+        const summaryUrl = apiBaseUrl
+          ? new URL(`/api/meetings/${pendingSummary.id}/summary`, apiBaseUrl).toString()
+          : `/api/meetings/${pendingSummary.id}/summary`;
+        const response = await fetch(summaryUrl);
+        if (!isActive) return;
+
+        if (response.status === 202) {
+          setSummaryCheckStatus('waiting');
+          setSummaryCheckMessage(t('summary_processing'));
+          timeoutId = setTimeout(pollSummaryReady, 4000);
+          return;
+        }
+
+        if (response.ok) {
+          setSummaryCheckStatus('idle');
+          setSummaryCheckMessage(null);
+          navigate(`/summary/${pendingSummary.resultId}`, {
+            state: { fileName: pendingSummary.fileName, meetingId: pendingSummary.id },
+          });
+          setPendingSummary(null);
+          return;
+        }
+
+        if (response.status === 404) {
+          let detail = '';
+          try {
+            const payload = (await response.json()) as { detail?: string };
+            detail = payload?.detail ?? '';
+          } catch {
+            // Ignore JSON parse errors.
+          }
+          if (detail.toLowerCase().includes('meeting not found')) {
+            setSummaryCheckStatus('error');
+            setSummaryCheckMessage(t('summary_not_found'));
+            setPendingSummary(null);
+            return;
+          }
+          setSummaryCheckStatus('waiting');
+          setSummaryCheckMessage(t('summary_processing'));
+          timeoutId = setTimeout(pollSummaryReady, 4000);
+          return;
+        }
+
+        let detail = t('summary_failed');
+        try {
+          const payload = (await response.json()) as { detail?: string };
+          if (payload?.detail) {
+            detail = payload.detail;
+          }
+        } catch {
+          // Keep default detail message.
+        }
+        throw new Error(detail);
+      } catch (error) {
+        if (!isActive) return;
+        setSummaryCheckStatus('error');
+        setSummaryCheckMessage(error instanceof Error ? error.message : t('summary_failed'));
+      }
+    };
+
+    pollSummaryReady();
+
+    return () => {
+      isActive = false;
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [pendingSummary, apiBaseUrl, navigate, t]);
 
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
@@ -57,6 +138,9 @@ const Home: React.FC = () => {
     setIsExporting(true);
     setUploadError(null);
     setUploadPercent(0);
+    setPendingSummary(null);
+    setSummaryCheckStatus('idle');
+    setSummaryCheckMessage(null);
 
     try {
       const data = await new Promise<{ meeting_id?: number }>((resolve, reject) => {
@@ -123,6 +207,12 @@ const Home: React.FC = () => {
       const normalizedName = file.name.trim() || t('untitled');
       const resultId = meetingId ? String(meetingId) : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       saveSummaryResult(resultId, normalizedName);
+      if (meetingId) {
+        setPendingSummary({ id: meetingId, resultId, fileName: normalizedName });
+        setSummaryCheckStatus('waiting');
+        setSummaryCheckMessage(t('summary_processing'));
+        return;
+      }
       navigate(`/summary/${resultId}`, { state: { fileName: normalizedName, meetingId } });
     } catch (error) {
       const message = error instanceof Error ? error.message : t('upload_failed');
@@ -176,6 +266,16 @@ const Home: React.FC = () => {
           {uploadError && (
             <p className="mt-3 text-sm text-red-500" role="alert">
               {uploadError}
+            </p>
+          )}
+          {summaryCheckStatus === 'waiting' && summaryCheckMessage && (
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400" role="status">
+              {summaryCheckMessage}
+            </p>
+          )}
+          {summaryCheckStatus === 'error' && summaryCheckMessage && (
+            <p className="mt-3 text-sm text-red-500" role="alert">
+              {summaryCheckMessage}
             </p>
           )}
           <UploadProgress
