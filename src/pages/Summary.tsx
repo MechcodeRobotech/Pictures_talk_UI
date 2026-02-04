@@ -103,6 +103,12 @@ const Summary: React.FC = () => {
   const summaryTextAreaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const summaryRatioRef = React.useRef<HTMLDivElement | null>(null);
   const hasUserEditedRef = React.useRef(false);
+  const lastMeetingIdRef = React.useRef<number | undefined>(meetingId);
+  const summaryTextRef = React.useRef(summaryText);
+
+  React.useEffect(() => {
+    summaryTextRef.current = summaryText;
+  }, [summaryText]);
 
   React.useEffect(() => {
     hasUserEditedRef.current = false;
@@ -116,9 +122,13 @@ const Summary: React.FC = () => {
       return;
     }
 
-    setSummaryText('');
+    const meetingChanged = lastMeetingIdRef.current !== meetingId;
+    if (meetingChanged || !summaryTextRef.current.trim()) {
+      setSummaryText('');
+    }
     setSummaryStatus('loading');
     setSummaryError(null);
+    lastMeetingIdRef.current = meetingId;
 
     let isActive = true;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -284,10 +294,37 @@ const Summary: React.FC = () => {
     () => SUMMARY_RATIO_OPTIONS.find((option) => option.value === summaryRatio)?.label ?? SUMMARY_RATIO_OPTIONS[1].label,
     [summaryRatio],
   );
+  const normalizeKeywordMatch = React.useCallback(
+    (value: string) => value.normalize('NFC').toLowerCase().trim(),
+    [],
+  );
+  const collapseKeywordMatch = React.useCallback(
+    (value: string) => normalizeKeywordMatch(value).replace(/[\s\p{P}\p{S}_]+/gu, ''),
+    [normalizeKeywordMatch],
+  );
   const displayKeywords = React.useMemo(() => {
-    if (keywords.length > 0) return keywords;
-    return !meetingId ? fallbackKeywords : [];
-  }, [keywords, meetingId]);
+    const sourceItems = keywords.length > 0 ? keywords : !meetingId ? fallbackKeywords : [];
+    if (!meetingId) {
+      return sourceItems;
+    }
+    const normalizedSummary = normalizeKeywordMatch(formattedDisplayText || '');
+    const collapsedSummary = collapseKeywordMatch(formattedDisplayText || '');
+    if (!normalizedSummary) {
+      return [];
+    }
+    return sourceItems.filter((item) => {
+      const term = (item.term ?? '').toString().trim();
+      if (!term) return false;
+      const normalizedTerm = normalizeKeywordMatch(term);
+      if (!normalizedTerm) return false;
+      if (normalizedSummary.includes(normalizedTerm)) {
+        return true;
+      }
+      const collapsedTerm = collapseKeywordMatch(normalizedTerm);
+      if (!collapsedTerm) return false;
+      return collapsedSummary.includes(collapsedTerm);
+    });
+  }, [keywords, meetingId, formattedDisplayText, normalizeKeywordMatch, collapseKeywordMatch]);
 
   const escapeRegex = React.useCallback((value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), []);
   const normalizeMatchValue = React.useCallback(
