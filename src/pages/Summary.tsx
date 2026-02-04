@@ -269,6 +269,14 @@ const Summary: React.FC = () => {
   }, []);
 
   const displayText = summaryText || (!meetingId ? DEFAULT_SUMMARY_TEXT : '');
+  const formattedDisplayText = React.useMemo(() => {
+    if (!displayText) return displayText;
+    // Fireflies sometimes returns bullet points in a single line separated by " - ".
+    if (!displayText.includes('\n') && displayText.includes(' - ')) {
+      return displayText.replace(/\s-\s(?=\S)/g, '\n- ');
+    }
+    return displayText;
+  }, [displayText]);
   const isWaitingForSummary = Boolean(meetingId) && summaryStatus === 'loading' && !summaryText;
   const showSummaryError = Boolean(meetingId) && summaryStatus === 'error';
   const showEmptySummary = Boolean(meetingId) && summaryStatus === 'ready' && !summaryText;
@@ -333,16 +341,16 @@ const Summary: React.FC = () => {
   );
 
   const highlightedParagraphs = React.useMemo(() => {
-    if (!displayText) return [];
-    return displayText.split(/\n\s*\n/).map((paragraph, index) => ({
+    if (!formattedDisplayText) return [];
+    return formattedDisplayText.split(/\n\s*\n/).map((paragraph, index) => ({
       id: `${paragraph.slice(0, 24)}-${index}`,
       text: paragraph,
       highlighted: highlightKeywords(paragraph),
     }));
-  }, [displayText, highlightKeywords]);
+  }, [formattedDisplayText, highlightKeywords]);
 
   const summaryCards = React.useMemo(() => {
-    const paragraphs = displayText
+    const paragraphs = formattedDisplayText
       .split(/\n\s*\n/)
       .map((paragraph) => paragraph.trim())
       .filter(Boolean)
@@ -370,7 +378,7 @@ const Summary: React.FC = () => {
         iconClass: decoration.iconClass,
       };
     });
-  }, [displayKeywords, displayText]);
+  }, [displayKeywords, formattedDisplayText]);
 
   return (
     <div className="max-w-[1400px] mx-auto animate-fadeIn">
@@ -471,7 +479,7 @@ const Summary: React.FC = () => {
               {highlightedParagraphs.map((item) => (
                 <p
                   key={item.id}
-                  className="text-lg leading-relaxed text-secondary dark:text-gray-200 mb-6"
+                  className="text-lg leading-relaxed whitespace-pre-line text-secondary dark:text-gray-200 mb-6"
                 >
                   {item.highlighted}
                 </p>
