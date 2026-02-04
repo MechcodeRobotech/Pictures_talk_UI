@@ -29,6 +29,7 @@ const SUMMARY_CHILD_PADDING_Y_PX = 8;
 const SUMMARY_CHILD_RADIUS_PX = 8;
 const FOOTER_PADDING_PX = 16;
 const FOOTER_TOP_PADDING_PX = 8;
+const SIDEBAR_NAV_BOTTOM_PADDING_PX = 12;
 const PROFILE_ROW_PADDING_X_PX = 8;
 const PROFILE_ROW_PADDING_Y_PX = 4;
 const PROFILE_ROW_RADIUS_PX = 12;
@@ -82,6 +83,7 @@ const SidebarContainer = styled.aside`
   flex-shrink: 0;
   height: 100%;
   align-self: stretch;
+  overflow: hidden;
   transition: width ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms ease;
   z-index: ${SIDEBAR_Z_INDEX};
   background: ${SIDEBAR_BG_LIGHT};
@@ -141,10 +143,13 @@ const SidebarContainer = styled.aside`
   .sidebar-nav {
     margin-top: ${NAV_MARGIN_TOP_PX}px;
     padding: 0 ${NAV_PADDING_X_PX}px;
+    padding-bottom: ${SIDEBAR_NAV_BOTTOM_PADDING_PX}px;
     display: flex;
     flex-direction: column;
     gap: ${NAV_GAP_PX}px;
     flex-grow: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .menu-group {
@@ -283,6 +288,8 @@ const SidebarContainer = styled.aside`
 
   .footer {
     padding: ${FOOTER_PADDING_PX}px;
+    margin-top: auto;
+    flex-shrink: 0;
   }
 
   .profile-section {

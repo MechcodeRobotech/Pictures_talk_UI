@@ -38,8 +38,30 @@ const DEFAULT_SUMMARY_TEXT = [
 type SummaryLocationState = {
   fileName?: string;
   meetingId?: number;
+  uploadedAt?: number;
+  durationMinutes?: number | null;
 };
 type SummaryRatioValue = (typeof SUMMARY_RATIO_OPTIONS)[number]['value'];
+type StoredSummaryResult = {
+  id: string;
+  name: string;
+  createdAt?: number;
+  durationMinutes?: number | null;
+};
+
+const formatDurationLabel = (value?: number | null) => {
+  if (!Number.isFinite(value) || (value ?? 0) <= 0) return '— mins';
+  return `${Math.round(value as number)} mins`;
+};
+
+const formatUploadedDateLabel = (timestamp?: number) => {
+  if (!Number.isFinite(timestamp)) return '—';
+  return new Date(timestamp as number).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+};
 
 const Summary: React.FC = () => {
   const { t } = useLanguage();
@@ -48,18 +70,26 @@ const Summary: React.FC = () => {
   const locationState = location.state as SummaryLocationState | null;
   const meetingIdFromParam = resultId && /^\d+$/.test(resultId) ? Number(resultId) : undefined;
   const meetingId = locationState?.meetingId ?? meetingIdFromParam;
-  const storedFileName = React.useMemo(() => {
+  const storedSummaryItem = React.useMemo(() => {
     if (!resultId) return undefined;
     try {
       const raw = localStorage.getItem('summaryResults');
       if (!raw) return undefined;
-      const parsed = JSON.parse(raw) as { id: string; name: string }[];
-      return parsed.find((item) => item.id === resultId)?.name;
+      const parsed = JSON.parse(raw) as StoredSummaryResult[];
+      return parsed.find((item) => item.id === resultId);
     } catch {
       return undefined;
     }
   }, [resultId]);
-  const fileName = locationState?.fileName ?? storedFileName;
+  const fileName = locationState?.fileName ?? storedSummaryItem?.name;
+  const uploadDurationLabel = React.useMemo(
+    () => formatDurationLabel(locationState?.durationMinutes ?? storedSummaryItem?.durationMinutes),
+    [locationState?.durationMinutes, storedSummaryItem?.durationMinutes],
+  );
+  const uploadDateLabel = React.useMemo(
+    () => formatUploadedDateLabel(locationState?.uploadedAt ?? storedSummaryItem?.createdAt),
+    [locationState?.uploadedAt, storedSummaryItem?.createdAt],
+  );
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
   const [isEditing, setIsEditing] = React.useState(false);
   const [summaryText, setSummaryText] = React.useState(() => (meetingId ? '' : DEFAULT_SUMMARY_TEXT));
@@ -96,9 +126,10 @@ const Summary: React.FC = () => {
     const pollSummary = async () => {
       if (!isActive) return;
       try {
+        const summaryPath = `/api/meetings/${meetingId}/summary?summary_ratio=${summaryRatio}`;
         const summaryUrl = apiBaseUrl
-          ? new URL(`/api/meetings/${meetingId}/summary`, apiBaseUrl).toString()
-          : `/api/meetings/${meetingId}/summary`;
+          ? new URL(summaryPath, apiBaseUrl).toString()
+          : summaryPath;
         const response = await fetch(summaryUrl);
         if (!isActive) return;
         if (response.status === 202) {
@@ -144,7 +175,7 @@ const Summary: React.FC = () => {
         clearTimeout(timeoutId);
       }
     };
-  }, [meetingId, apiBaseUrl]);
+  }, [meetingId, apiBaseUrl, summaryRatio]);
 
   React.useEffect(() => {
     if (!meetingId) {
@@ -387,6 +418,7 @@ const Summary: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setSummaryRatio(option.value);
+                        hasUserEditedRef.current = false;
                         setIsSummaryRatioOpen(false);
                       }}
                       className={`w-full px-3.5 py-2.5 text-left text-sm flex items-center justify-between transition-colors ${
@@ -408,10 +440,10 @@ const Summary: React.FC = () => {
           <div className="flex items-center gap-3 text-sm text-slate-400 dark:text-slate-500">
             <span className="flex items-center">
               <span className="material-icons-round text-base mr-1">schedule</span>
-              45 mins
+              {uploadDurationLabel}
             </span>
             <span className="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-600"></span>
-            <span>Oct 24, 2023</span>
+            <span>{uploadDateLabel}</span>
           </div>
         </div>
 

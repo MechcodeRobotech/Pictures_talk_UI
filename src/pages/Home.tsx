@@ -8,6 +8,56 @@ import AudioButton from '../components/Home/AudioButton';
 import DragDropUpload from '../components/Home/DragDropUpload';
 import UploadProgress from '../components/Home/UploadProgress';
 
+type StoredSummaryResult = {
+  id: string;
+  name: string;
+  createdAt: number;
+  durationMinutes?: number | null;
+};
+
+type PendingSummary = {
+  id: number;
+  resultId: string;
+  fileName: string;
+  createdAt: number;
+  durationMinutes: number | null;
+};
+
+const getFileDurationSeconds = async (file: File): Promise<number | null> => {
+  const mediaType = file.type.toLowerCase();
+  const shouldUseVideo = mediaType.startsWith('video/');
+  const shouldUseAudio = mediaType.startsWith('audio/');
+  if (!shouldUseVideo && !shouldUseAudio) return null;
+
+  return new Promise<number | null>((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const element = shouldUseVideo ? document.createElement('video') : document.createElement('audio');
+
+    const cleanup = () => {
+      element.removeAttribute('src');
+      element.load();
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    element.preload = 'metadata';
+    element.src = objectUrl;
+
+    element.onloadedmetadata = () => {
+      const duration = element.duration;
+      cleanup();
+      if (!Number.isFinite(duration) || duration <= 0) {
+        resolve(null);
+        return;
+      }
+      resolve(duration);
+    };
+    element.onerror = () => {
+      cleanup();
+      resolve(null);
+    };
+  });
+};
+
 const Home: React.FC = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -16,19 +66,19 @@ const Home: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [uploadPercent, setUploadPercent] = useState(0);
-  const [pendingSummary, setPendingSummary] = useState<{ id: number; resultId: string; fileName: string } | null>(null);
+  const [pendingSummary, setPendingSummary] = useState<PendingSummary | null>(null);
   const [summaryCheckStatus, setSummaryCheckStatus] = useState<'idle' | 'waiting' | 'error'>('idle');
   const [summaryCheckMessage, setSummaryCheckMessage] = useState<string | null>(null);
   const storageKey = 'summaryResults';
   const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
   const userPlan = (import.meta.env.VITE_USER_PLAN as string | undefined) ?? '';
 
-  const saveSummaryResult = (resultId: string, name: string) => {
+  const saveSummaryResult = (resultId: string, name: string, createdAt: number, durationMinutes: number | null) => {
     try {
       const raw = localStorage.getItem(storageKey);
-      const existing = raw ? (JSON.parse(raw) as { id: string; name: string; createdAt: number }[]) : [];
+      const existing = raw ? (JSON.parse(raw) as StoredSummaryResult[]) : [];
       const next = [
-        { id: resultId, name, createdAt: Date.now() },
+        { id: resultId, name, createdAt, durationMinutes },
         ...existing.filter((item) => item.id !== resultId),
       ].slice(0, 12);
       localStorage.setItem(storageKey, JSON.stringify(next));
@@ -62,7 +112,12 @@ const Home: React.FC = () => {
           setSummaryCheckStatus('idle');
           setSummaryCheckMessage(null);
           navigate(`/summary/${pendingSummary.resultId}`, {
-            state: { fileName: pendingSummary.fileName, meetingId: pendingSummary.id },
+            state: {
+              fileName: pendingSummary.fileName,
+              meetingId: pendingSummary.id,
+              uploadedAt: pendingSummary.createdAt,
+              durationMinutes: pendingSummary.durationMinutes,
+            },
           });
           setPendingSummary(null);
           return;
@@ -143,6 +198,9 @@ const Home: React.FC = () => {
     setSummaryCheckMessage(null);
 
     try {
+      const createdAt = Date.now();
+      const durationSeconds = await getFileDurationSeconds(file);
+      const durationMinutes = durationSeconds === null ? null : Math.max(1, Math.round(durationSeconds / 60));
       const data = await new Promise<{ meeting_id?: number }>((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', file);
@@ -206,14 +264,27 @@ const Home: React.FC = () => {
       const meetingId = data.meeting_id;
       const normalizedName = file.name.trim() || t('untitled');
       const resultId = meetingId ? String(meetingId) : `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      saveSummaryResult(resultId, normalizedName);
+      saveSummaryResult(resultId, normalizedName, createdAt, durationMinutes);
       if (meetingId) {
-        setPendingSummary({ id: meetingId, resultId, fileName: normalizedName });
+        setPendingSummary({
+          id: meetingId,
+          resultId,
+          fileName: normalizedName,
+          createdAt,
+          durationMinutes,
+        });
         setSummaryCheckStatus('waiting');
         setSummaryCheckMessage(t('summary_processing'));
         return;
       }
-      navigate(`/summary/${resultId}`, { state: { fileName: normalizedName, meetingId } });
+      navigate(`/summary/${resultId}`, {
+        state: {
+          fileName: normalizedName,
+          meetingId,
+          uploadedAt: createdAt,
+          durationMinutes,
+        },
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : t('upload_failed');
       setUploadError(message);

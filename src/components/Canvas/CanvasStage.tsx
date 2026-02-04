@@ -107,7 +107,11 @@ const handleDelete = (_eventData: MouseEvent, transform: fabric.Transform) => {
 };
 
 const createCustomControls = () => {
-  const controls = fabric.controlsUtils.createObjectDefaultControls();
+  const controls = fabric.controlsUtils.createObjectDefaultControls() as ReturnType<
+    typeof fabric.controlsUtils.createObjectDefaultControls
+  > & {
+    deleteControl?: fabric.Control;
+  };
   controls.deleteControl = new fabric.Control({
     x: 0.5,
     y: -0.5,
@@ -174,6 +178,39 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
   const pointsRef = useRef<{ x: number; y: number }[]>([]);
   const selectionChangeRef = useRef<CanvasStageProps['onSelectionChange']>(onSelectionChange);
 
+  const saveCanvasToStorage = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    try {
+      const json = canvas.toObject(['controls']);
+      localStorage.setItem('canvasData', JSON.stringify(json));
+    } catch (error) {
+      console.error('Error saving canvas:', error);
+    }
+  };
+
+  const loadCanvasFromStorage = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    try {
+      const data = localStorage.getItem('canvasData');
+      if (!data) return;
+
+      const json = JSON.parse(data);
+      canvas
+        .loadFromJSON(json)
+        .then(() => {
+          canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
+          canvas.requestRenderAll();
+        })
+        .catch((error) => {
+          console.error('Error loading canvas:', error);
+        });
+    } catch (error) {
+      console.error('Error loading canvas:', error);
+    }
+  };
+
   const textSamples = useMemo(
     () => ({
       heading: t('heading'),
@@ -202,7 +239,7 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     });
     canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
 
-    const handleObjectAdded = (event: fabric.IEvent) => {
+    const handleObjectAdded = (event: { target?: fabric.Object }) => {
       if (event.target) {
         applyCustomControlsToObject(event.target);
       }
@@ -210,7 +247,7 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     canvas.on('object:added', handleObjectAdded);
 
     setTimeout(() => {
-      canvasRef.current?.loadCanvas();
+      loadCanvasFromStorage();
     }, 100);
 
     const emitSelectionChange = () => {
@@ -268,15 +305,18 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       canvas.requestRenderAll();
     });
 
-    canvas.on('object:added', () => canvasRef.current?.saveCanvas());
-    canvas.on('object:modified', () => canvasRef.current?.saveCanvas());
-    canvas.on('object:removed', () => canvasRef.current?.saveCanvas());
+    canvas.on('object:added', saveCanvasToStorage);
+    canvas.on('object:modified', saveCanvasToStorage);
+    canvas.on('object:removed', saveCanvasToStorage);
 
     return () => {
       canvas.off('object:added', handleObjectAdded);
       canvas.off('selection:created', handleSelectionEvent);
       canvas.off('selection:updated', handleSelectionEvent);
       canvas.off('selection:cleared', handleSelectionEvent);
+      canvas.off('object:added', saveCanvasToStorage);
+      canvas.off('object:modified', saveCanvasToStorage);
+      canvas.off('object:removed', saveCanvasToStorage);
       canvas.dispose();
       fabricRef.current = null;
     };
@@ -453,39 +493,15 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       canvas.requestRenderAll();
     },
 
-    saveCanvas: () => {
-      const canvas = fabricRef.current;
-      if (!canvas) return;
-      try {
-        const json = canvas.toJSON(['controls']);
-        localStorage.setItem('canvasData', JSON.stringify(json));
-      } catch (error) {
-        console.error('Error saving canvas:', error);
-      }
-    },
+    saveCanvas: saveCanvasToStorage,
 
-    loadCanvas: () => {
-      const canvas = fabricRef.current;
-      if (!canvas) return;
-      try {
-        const data = localStorage.getItem('canvasData');
-        if (data) {
-          const json = JSON.parse(data);
-          canvas.loadFromJSON(json, () => {
-            canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
-            canvas.requestRenderAll();
-          });
-        }
-      } catch (error) {
-        console.error('Error loading canvas:', error);
-      }
-    },
+    loadCanvas: loadCanvasFromStorage,
 
     getCanvasData: () => {
       const canvas = fabricRef.current;
       if (!canvas) return null;
       try {
-        return canvas.toJSON(['controls']);
+        return canvas.toObject(['controls']);
       } catch (error) {
         console.error('Error getting canvas data:', error);
         return null;
@@ -496,10 +512,15 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       const canvas = fabricRef.current;
       if (!canvas) return;
       try {
-        canvas.loadFromJSON(data, () => {
-          canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
-          canvas.requestRenderAll();
-        });
+        canvas
+          .loadFromJSON(data)
+          .then(() => {
+            canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
+            canvas.requestRenderAll();
+          })
+          .catch((error) => {
+            console.error('Error loading canvas from data:', error);
+          });
       } catch (error) {
         console.error('Error loading canvas from data:', error);
       }
