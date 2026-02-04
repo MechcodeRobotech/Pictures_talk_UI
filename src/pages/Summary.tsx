@@ -3,6 +3,30 @@ import { useLocation, useParams } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 import Keywords, { fallbackKeywords, keywordPalette, KeywordItem } from '../components/Summary/Keywords';
 
+const SUMMARY_SECTION_MAX_CARDS = 3;
+const SUMMARY_TITLE_WORD_LIMIT = 6;
+const SUMMARY_DESC_MAX_CHARS = 140;
+const SUMMARY_RATIO_OPTIONS = [
+  { value: '100', label: '100% Summary from text' },
+  { value: '75', label: '75% Summary from text' },
+  { value: '50', label: '50% Summary from text' },
+  { value: '25', label: '25% Summary from text' },
+] as const;
+const SUMMARY_CARD_DECORATIONS = [
+  {
+    icon: 'article',
+    iconClass: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
+  },
+  {
+    icon: 'assignment',
+    iconClass: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
+  },
+  {
+    icon: 'auto_awesome',
+    iconClass: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
+  },
+];
+
 const DEFAULT_SUMMARY_TEXT = [
   'In this meeting, the team discussed Marketing Strategy for Q4, focusing on preparing for the new product launch at the end of the year, which is a key period for generating sales.',
   'A key point raised was regarding the Advertising Budget. The finance department proposed reducing the budget for print media and reallocating it to online media and social media.',
@@ -15,6 +39,7 @@ type SummaryLocationState = {
   fileName?: string;
   meetingId?: number;
 };
+type SummaryRatioValue = (typeof SUMMARY_RATIO_OPTIONS)[number]['value'];
 
 const Summary: React.FC = () => {
   const { t } = useLanguage();
@@ -43,7 +68,10 @@ const Summary: React.FC = () => {
   const [keywords, setKeywords] = React.useState<KeywordItem[]>([]);
   const [keywordsStatus, setKeywordsStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [keywordsError, setKeywordsError] = React.useState<string | null>(null);
+  const [summaryRatio, setSummaryRatio] = React.useState<SummaryRatioValue>('75');
+  const [isSummaryRatioOpen, setIsSummaryRatioOpen] = React.useState(false);
   const summaryTextAreaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const summaryRatioRef = React.useRef<HTMLDivElement | null>(null);
   const hasUserEditedRef = React.useRef(false);
 
   React.useEffect(() => {
@@ -188,10 +216,35 @@ const Summary: React.FC = () => {
     }
   }, [isEditing]);
 
+  React.useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!summaryRatioRef.current) return;
+      const target = event.target as Node | null;
+      if (target && !summaryRatioRef.current.contains(target)) {
+        setIsSummaryRatioOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSummaryRatioOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   const displayText = summaryText || (!meetingId ? DEFAULT_SUMMARY_TEXT : '');
   const isWaitingForSummary = Boolean(meetingId) && summaryStatus === 'loading' && !summaryText;
   const showSummaryError = Boolean(meetingId) && summaryStatus === 'error';
   const showEmptySummary = Boolean(meetingId) && summaryStatus === 'ready' && !summaryText;
+  const selectedSummaryRatioLabel = React.useMemo(
+    () => SUMMARY_RATIO_OPTIONS.find((option) => option.value === summaryRatio)?.label ?? SUMMARY_RATIO_OPTIONS[1].label,
+    [summaryRatio],
+  );
   const displayKeywords = React.useMemo(() => {
     if (keywords.length > 0) return keywords;
     return !meetingId ? fallbackKeywords : [];
@@ -257,32 +310,36 @@ const Summary: React.FC = () => {
     }));
   }, [displayText, highlightKeywords]);
 
-  const recentWork = [
-    {
-      title: 'UX Design Brainstorming',
-      date: 'Oct 20, 2023',
-      desc: 'Discussed user journey improvements for the new dashboard.',
-      tags: ['Product', 'Design'],
-      icon: 'groups',
-      iconClass: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400',
-    },
-    {
-      title: 'End of Year Campaign Update',
-      date: 'Oct 18, 2023',
-      desc: 'Checked readiness of advertising media and budget for promotion.',
-      tags: ['Marketing'],
-      icon: 'campaign',
-      iconClass: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
-    },
-    {
-      title: 'Q3 Performance Summary',
-      date: 'Oct 15, 2023',
-      desc: 'Presented profit figures and next-quarter improvement plans.',
-      tags: ['Finance'],
-      icon: 'trending_up',
-      iconClass: 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400',
-    },
-  ];
+  const summaryCards = React.useMemo(() => {
+    const paragraphs = displayText
+      .split(/\n\s*\n/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean)
+      .slice(0, SUMMARY_SECTION_MAX_CARDS);
+
+    const keywordTerms = displayKeywords
+      .map((item) => (item.term ?? '').toString().trim())
+      .filter(Boolean);
+
+    return paragraphs.map((paragraph, index) => {
+      const titleWords = paragraph.split(/\s+/).filter(Boolean).slice(0, SUMMARY_TITLE_WORD_LIMIT);
+      const title = titleWords.join(' ');
+      const shouldTrimDesc = paragraph.length > SUMMARY_DESC_MAX_CHARS;
+      const description = shouldTrimDesc ? `${paragraph.slice(0, SUMMARY_DESC_MAX_CHARS).trimEnd()}...` : paragraph;
+      const tags = keywordTerms.slice(index * 2, index * 2 + 2);
+      const fallbackTag = `Point ${index + 1}`;
+      const decoration = SUMMARY_CARD_DECORATIONS[index % SUMMARY_CARD_DECORATIONS.length];
+      return {
+        id: `${title}-${index}`,
+        title: title || fallbackTag,
+        date: `Summary ${index + 1}`,
+        desc: description,
+        tags: tags.length > 0 ? tags : [fallbackTag],
+        icon: decoration.icon,
+        iconClass: decoration.iconClass,
+      };
+    });
+  }, [displayKeywords, displayText]);
 
   return (
     <div className="max-w-[1400px] mx-auto animate-fadeIn">
@@ -295,7 +352,9 @@ const Summary: React.FC = () => {
               {fileName ?? t('summary')}
             </span>
           </nav>
-          <h2 className="text-2xl md:text-3xl font-bold text-secondary dark:text-white">Weekly Meeting Summary</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-secondary dark:text-white truncate max-w-[640px]" title={fileName ?? t('summary')}>
+            {fileName ?? t('summary')}
+          </h2>
         </div>
       </header>
 
@@ -307,17 +366,43 @@ const Summary: React.FC = () => {
               Meeting Summary Article
             </h3>
             <div className="h-6 w-px bg-gray-200 dark:bg-gray-600 hidden sm:block"></div>
-            <div className="relative">
-              <select
-                defaultValue="75"
-                className="appearance-none bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-secondary dark:text-gray-200 text-sm rounded-lg pl-3 pr-10 py-2 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors"
+            <div className="relative" ref={summaryRatioRef}>
+              <button
+                type="button"
+                onClick={() => setIsSummaryRatioOpen((prev) => !prev)}
+                className="min-w-[250px] flex items-center justify-between rounded-xl border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3.5 py-2 text-sm font-medium text-secondary dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
               >
-                <option value="100">100% Summary from text</option>
-                <option value="75">75% Summary from text</option>
-                <option value="50">50% Summary from text</option>
-                <option value="25">25% Summary from text</option>
-              </select>
-              <span className="material-icons-round absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-lg">expand_more</span>
+                <span>{selectedSummaryRatioLabel}</span>
+                <span
+                  className={`material-icons-round text-lg text-slate-400 transition-transform ${isSummaryRatioOpen ? 'rotate-180' : ''}`}
+                >
+                  expand_more
+                </span>
+              </button>
+              {isSummaryRatioOpen && (
+                <div className="absolute left-0 top-full z-30 mt-2 w-full overflow-hidden rounded-xl border border-gray-200 dark:border-gray-600 bg-white/95 dark:bg-gray-800/95 shadow-xl backdrop-blur-sm">
+                  {SUMMARY_RATIO_OPTIONS.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => {
+                        setSummaryRatio(option.value);
+                        setIsSummaryRatioOpen(false);
+                      }}
+                      className={`w-full px-3.5 py-2.5 text-left text-sm flex items-center justify-between transition-colors ${
+                        option.value === summaryRatio
+                          ? 'bg-primary/10 text-secondary dark:text-white font-semibold'
+                          : 'text-slate-600 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-gray-700/70'
+                      }`}
+                    >
+                      <span>{option.label}</span>
+                      {option.value === summaryRatio && (
+                        <span className="material-icons-round text-base text-primary">check</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3 text-sm text-slate-400 dark:text-slate-500">
@@ -399,37 +484,43 @@ const Summary: React.FC = () => {
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recentWork.map((item) => (
-            <div
-              key={item.title}
-              className="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all cursor-pointer group"
-            >
-              <div className="flex justify-between items-start mb-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 ${item.iconClass}`}>
-                  <span className="material-icons-round">{item.icon}</span>
-                </div>
-                <span className="text-xs font-medium text-slate-400 dark:text-slate-500 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-md">
-                  {item.date}
-                </span>
-              </div>
-              <h4 className="font-bold text-lg text-secondary dark:text-white mb-2 group-hover:text-primary transition-colors">
-                {item.title}
-              </h4>
-              <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-4 leading-relaxed">
-                {item.desc}
-              </p>
-              <div className="flex flex-wrap items-center gap-2 mt-auto">
-                {item.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700/50 text-xs font-medium text-slate-500 dark:text-slate-300 border border-gray-100 dark:border-gray-600"
-                  >
-                    {tag}
+          {summaryCards.length > 0 ? (
+            summaryCards.map((item) => (
+              <div
+                key={item.id}
+                className="bg-surface-light dark:bg-surface-dark p-5 rounded-2xl border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all cursor-pointer group"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-200 ${item.iconClass}`}>
+                    <span className="material-icons-round">{item.icon}</span>
+                  </div>
+                  <span className="text-xs font-medium text-slate-400 dark:text-slate-500 bg-gray-50 dark:bg-gray-800 px-2 py-1 rounded-md">
+                    {item.date}
                   </span>
-                ))}
+                </div>
+                <h4 className="font-bold text-lg text-secondary dark:text-white mb-2 group-hover:text-primary transition-colors">
+                  {item.title}
+                </h4>
+                <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 mb-4 leading-relaxed">
+                  {item.desc}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-auto">
+                  {item.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700/50 text-xs font-medium text-slate-500 dark:text-slate-300 border border-gray-100 dark:border-gray-600"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-full bg-surface-light dark:bg-surface-dark p-6 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 text-sm text-slate-500 dark:text-slate-400">
+              Summary highlights will appear here after the summary is generated.
             </div>
-          ))}
+          )}
         </div>
       </section>
     </div>

@@ -1,5 +1,4 @@
 import React from 'react';
-import Sentiment from './Sentiment';
 
 export type KeywordItem = {
   label?: string | null;
@@ -145,7 +144,6 @@ const Keywords: React.FC<KeywordsProps> = ({
         )}
       </div>
 
-      <Sentiment />
     </aside>
   );
 };
