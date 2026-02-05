@@ -298,21 +298,45 @@ const Summary: React.FC = () => {
     (value: string) => value.normalize('NFC').toLowerCase().trim(),
     [],
   );
+  const normalizeMatchValue = React.useCallback(
+    (value: string) =>
+      value
+        .normalize('NFC')
+        .toLowerCase()
+        .replace(/[^0-9a-z\u0E00-\u0E7F]+/gi, ''),
+    [],
+  );
   const collapseKeywordMatch = React.useCallback(
     (value: string) => normalizeKeywordMatch(value).replace(/[\s\p{P}\p{S}_]+/gu, ''),
     [normalizeKeywordMatch],
   );
+  const keywordSourceItems = React.useMemo(
+    () => (keywords.length > 0 ? keywords : !meetingId ? fallbackKeywords : []),
+    [keywords, meetingId],
+  );
+  const keywordHighlightClassByTerm = React.useMemo(() => {
+    const paletteByTerm = new Map<string, string>();
+
+    keywordSourceItems.forEach((item, index) => {
+      const term = (item.term ?? '').toString().trim();
+      if (!term) return;
+      const normalizedTerm = normalizeMatchValue(term);
+      if (!normalizedTerm || paletteByTerm.has(normalizedTerm)) return;
+      paletteByTerm.set(normalizedTerm, keywordPalette[index % keywordPalette.length].termHighlightClass);
+    });
+
+    return paletteByTerm;
+  }, [keywordSourceItems, normalizeMatchValue]);
   const displayKeywords = React.useMemo(() => {
-    const sourceItems = keywords.length > 0 ? keywords : !meetingId ? fallbackKeywords : [];
     if (!meetingId) {
-      return sourceItems;
+      return keywordSourceItems;
     }
     const normalizedSummary = normalizeKeywordMatch(formattedDisplayText || '');
     const collapsedSummary = collapseKeywordMatch(formattedDisplayText || '');
     if (!normalizedSummary) {
       return [];
     }
-    return sourceItems.filter((item) => {
+    return keywordSourceItems.filter((item) => {
       const term = (item.term ?? '').toString().trim();
       if (!term) return false;
       const normalizedTerm = normalizeKeywordMatch(term);
@@ -324,17 +348,9 @@ const Summary: React.FC = () => {
       if (!collapsedTerm) return false;
       return collapsedSummary.includes(collapsedTerm);
     });
-  }, [keywords, meetingId, formattedDisplayText, normalizeKeywordMatch, collapseKeywordMatch]);
+  }, [keywordSourceItems, meetingId, formattedDisplayText, normalizeKeywordMatch, collapseKeywordMatch]);
 
   const escapeRegex = React.useCallback((value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), []);
-  const normalizeMatchValue = React.useCallback(
-    (value: string) =>
-      value
-        .normalize('NFC')
-        .toLowerCase()
-        .replace(/[^0-9a-z\u0E00-\u0E7F]+/gi, ''),
-    [],
-  );
 
   const highlightKeywords = React.useCallback(
     (text: string) => {
@@ -353,7 +369,10 @@ const Summary: React.FC = () => {
         const chars = Array.from(normalizedTerm);
         const pattern = chars.map((char) => escapeRegex(char)).join('[\\s\\p{P}]*');
         if (!pattern) return;
-        paletteByTerm.set(normalizedTerm, keywordPalette[index % keywordPalette.length].termHighlightClass);
+        paletteByTerm.set(
+          normalizedTerm,
+          keywordHighlightClassByTerm.get(normalizedTerm) ?? keywordPalette[index % keywordPalette.length].termHighlightClass,
+        );
         normalizedEntries.push({ key: normalizedTerm, pattern, length: normalizedTerm.length });
       });
 
@@ -374,7 +393,7 @@ const Summary: React.FC = () => {
         );
       });
     },
-    [displayKeywords, escapeRegex],
+    [displayKeywords, escapeRegex, keywordHighlightClassByTerm, normalizeMatchValue],
   );
 
   const highlightedParagraphs = React.useMemo(() => {
