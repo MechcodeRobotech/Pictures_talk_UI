@@ -98,7 +98,7 @@ const Summary: React.FC = () => {
   const [keywords, setKeywords] = React.useState<KeywordItem[]>([]);
   const [keywordsStatus, setKeywordsStatus] = React.useState<'idle' | 'loading' | 'ready' | 'error'>('idle');
   const [keywordsError, setKeywordsError] = React.useState<string | null>(null);
-  const [summaryRatio, setSummaryRatio] = React.useState<SummaryRatioValue>('75');
+  const [summaryRatio, setSummaryRatio] = React.useState<SummaryRatioValue>('100');
   const [isSummaryRatioOpen, setIsSummaryRatioOpen] = React.useState(false);
   const summaryTextAreaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const summaryRatioRef = React.useRef<HTMLDivElement | null>(null);
@@ -291,7 +291,7 @@ const Summary: React.FC = () => {
   const showSummaryError = Boolean(meetingId) && summaryStatus === 'error';
   const showEmptySummary = Boolean(meetingId) && summaryStatus === 'ready' && !summaryText;
   const selectedSummaryRatioLabel = React.useMemo(
-    () => SUMMARY_RATIO_OPTIONS.find((option) => option.value === summaryRatio)?.label ?? SUMMARY_RATIO_OPTIONS[1].label,
+    () => SUMMARY_RATIO_OPTIONS.find((option) => option.value === summaryRatio)?.label ?? SUMMARY_RATIO_OPTIONS[0].label,
     [summaryRatio],
   );
   const normalizeKeywordMatch = React.useCallback(
