@@ -30,6 +30,7 @@ export type CanvasStageHandle = {
   addImageAtCenter: (payload: DragPayload & { type: 'image' }) => void;
   addIconAtCenter: (payload: DragPayload & { type: 'icon' }) => void;
   addShapeAtCenter: (payload: DragPayload & { type: 'shape' }) => void;
+  applyTemplate: (templateId: string) => void;
   updateActiveObjectFont: (options: { fontFamily?: string; fontSize?: number; fontWeight?: string; textAlign?: string; fill?: string }) => void;
   updateActiveObjectStroke: (options: { stroke?: string; strokeWidth?: number }) => void;
   updateActiveObjectFill: (options: { fill: string }) => void;
@@ -70,6 +71,247 @@ const BASE_IMAGE_SIZE = 160;
 const BASE_SHAPE_SIZE = 80;
 const CONTROL_SIZE_PX = 20;
 const CONTROL_OFFSET_PX = 12;
+
+type TemplateBox = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  label: string;
+  highlight?: boolean;
+};
+
+type TemplatePreset = {
+  id: string;
+  title: string;
+  subtitle: string;
+  date: string;
+  boxes: TemplateBox[];
+};
+
+const TEMPLATE_PRESETS: TemplatePreset[] = [
+  {
+    id: 'l1',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 1, label: 'Content Column 1' },
+      { x: 0.51, y: 0, w: 0.49, h: 1, label: 'Content Column 2' },
+    ],
+  },
+  {
+    id: 'l2',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.32, h: 1, label: 'Content Column 1' },
+      { x: 0.34, y: 0, w: 0.32, h: 1, label: 'Content Column 2' },
+      { x: 0.68, y: 0, w: 0.32, h: 1, label: 'Content Column 3' },
+    ],
+  },
+  {
+    id: 'l3',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.32, h: 1, label: 'Content Column 1' },
+      { x: 0.34, y: 0, w: 0.32, h: 1, label: 'Content Column 2' },
+      { x: 0.68, y: 0, w: 0.32, h: 1, label: 'Content Column 3' },
+    ],
+  },
+  {
+    id: 'l4',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 1, h: 0.26, label: 'Highlight Content', highlight: true },
+      { x: 0, y: 0.3, w: 0.235, h: 0.7, label: 'Content Column 1' },
+      { x: 0.255, y: 0.3, w: 0.235, h: 0.7, label: 'Content Column 2' },
+      { x: 0.51, y: 0.3, w: 0.235, h: 0.7, label: 'Content Column 3' },
+      { x: 0.765, y: 0.3, w: 0.235, h: 0.7, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'l5',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.235, h: 1, label: 'Content Column 1' },
+      { x: 0.255, y: 0, w: 0.235, h: 1, label: 'Content Column 2' },
+      { x: 0.51, y: 0, w: 0.235, h: 1, label: 'Content Column 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'l6',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 1, h: 0.22, label: 'Highlight Content', highlight: true },
+      { x: 0, y: 0.26, w: 0.15, h: 0.74, label: 'Content 1' },
+      { x: 0.17, y: 0.26, w: 0.15, h: 0.74, label: 'Content 2' },
+      { x: 0.34, y: 0.26, w: 0.15, h: 0.74, label: 'Content 3' },
+      { x: 0.51, y: 0.26, w: 0.15, h: 0.74, label: 'Content 4' },
+      { x: 0.68, y: 0.26, w: 0.15, h: 0.74, label: 'Content 5' },
+      { x: 0.85, y: 0.26, w: 0.15, h: 0.74, label: 'Content 6' },
+    ],
+  },
+  {
+    id: 'l7',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.19, h: 1, label: 'Content Column 1' },
+      { x: 0.202, y: 0, w: 0.19, h: 1, label: 'Content Column 2' },
+      { x: 0.404, y: 0, w: 0.19, h: 1, label: 'Content Column 3' },
+      { x: 0.606, y: 0, w: 0.19, h: 1, label: 'Content Column 4' },
+      { x: 0.808, y: 0, w: 0.19, h: 1, label: 'Content Column 5' },
+    ],
+  },
+  {
+    id: 'l8',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0.05, w: 0.235, h: 0.4, label: '01' },
+      { x: 0.255, y: 0.05, w: 0.235, h: 0.4, label: '02' },
+      { x: 0.51, y: 0.05, w: 0.235, h: 0.4, label: '03' },
+      { x: 0.765, y: 0.05, w: 0.235, h: 0.4, label: '04' },
+      { x: 0, y: 0.55, w: 0.235, h: 0.4, label: 'Content Column 1' },
+      { x: 0.255, y: 0.55, w: 0.235, h: 0.4, label: 'Content Column 2' },
+      { x: 0.51, y: 0.55, w: 0.235, h: 0.4, label: 'Content Column 3' },
+      { x: 0.765, y: 0.55, w: 0.235, h: 0.4, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'l9',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.24, h: 1, label: 'PHASE 1' },
+      { x: 0.255, y: 0, w: 0.24, h: 1, label: 'PHASE 2' },
+      { x: 0.51, y: 0, w: 0.24, h: 1, label: 'PHASE 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'PHASE 4' },
+      { x: 0.28, y: 0.06, w: 0.44, h: 0.2, label: 'Highlight Content', highlight: true },
+    ],
+  },
+  {
+    id: 'p1',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 0.49, label: 'Content 1' },
+      { x: 0.51, y: 0, w: 0.49, h: 0.49, label: 'Content 2' },
+      { x: 0, y: 0.51, w: 0.49, h: 0.49, label: 'Content 3' },
+      { x: 0.51, y: 0.51, w: 0.49, h: 0.49, label: 'Content 4' },
+    ],
+  },
+  {
+    id: 'p2',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 0.28, label: 'Highlight 1', highlight: true },
+      { x: 0.51, y: 0, w: 0.49, h: 0.28, label: 'Highlight 2', highlight: true },
+      { x: 0, y: 0.32, w: 0.49, h: 0.68, label: 'Content Column 1' },
+      { x: 0.51, y: 0.32, w: 0.49, h: 0.68, label: 'Content Column 2' },
+    ],
+  },
+  {
+    id: 'p3',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 1, label: 'Content Column 1' },
+      { x: 0.51, y: 0, w: 0.49, h: 1, label: 'Content Column 2' },
+    ],
+  },
+  {
+    id: 'p4',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.32, h: 1, label: 'Content Column 1' },
+      { x: 0.34, y: 0, w: 0.32, h: 1, label: 'Content Column 2' },
+      { x: 0.68, y: 0, w: 0.32, h: 1, label: 'Content Column 3' },
+    ],
+  },
+  {
+    id: 'p5',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.235, h: 1, label: 'Content Column 1' },
+      { x: 0.255, y: 0, w: 0.235, h: 1, label: 'Content Column 2' },
+      { x: 0.51, y: 0, w: 0.235, h: 1, label: 'Content Column 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'p6',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 0.49, label: 'Content Column 1' },
+      { x: 0.51, y: 0, w: 0.49, h: 0.49, label: 'Content Column 2' },
+      { x: 0, y: 0.51, w: 0.49, h: 0.49, label: 'Content Column 3' },
+      { x: 0.51, y: 0.51, w: 0.49, h: 0.49, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'p7',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 1, h: 0.24, label: 'Highlight Content', highlight: true },
+      { x: 0, y: 0.28, w: 0.24, h: 0.72, label: 'Content Column 1' },
+      { x: 0.255, y: 0.28, w: 0.24, h: 0.72, label: 'Content Column 2' },
+      { x: 0.51, y: 0.28, w: 0.24, h: 0.72, label: 'Content Column 3' },
+      { x: 0.765, y: 0.28, w: 0.235, h: 0.72, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'p8',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.24, h: 1, label: 'Content Column 1' },
+      { x: 0.255, y: 0, w: 0.24, h: 1, label: 'Content Column 2' },
+      { x: 0.51, y: 0, w: 0.24, h: 1, label: 'Content Column 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'Content Column 4' },
+      { x: 0.29, y: 0.05, w: 0.42, h: 0.18, label: 'Highlight Content', highlight: true },
+    ],
+  },
+  {
+    id: 'p9',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.235, h: 1, label: 'Content Column 1' },
+      { x: 0.255, y: 0, w: 0.235, h: 1, label: 'Content Column 2' },
+      { x: 0.51, y: 0, w: 0.235, h: 1, label: 'Content Column 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'Content Column 4' },
+    ],
+  },
+];
 
 const createSvgIcon = (svg: string) => {
   const image = new Image();
@@ -373,6 +615,103 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const applyTemplateToCanvas = (templateId: string) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+
+    const preset = TEMPLATE_PRESETS.find((item) => item.id === templateId);
+    if (!preset) return;
+
+    const objects = canvas.getObjects();
+    objects.forEach((object) => canvas.remove(object));
+
+    const canvasWidthPx = canvas.getWidth();
+    const canvasHeightPx = canvas.getHeight();
+    const paddingX = Math.max(26, canvasWidthPx * 0.04);
+    const headerTop = Math.max(22, canvasHeightPx * 0.03);
+    const contentTop = Math.max(118, canvasHeightPx * 0.2);
+    const contentBottomPadding = Math.max(24, canvasHeightPx * 0.05);
+    const contentWidth = canvasWidthPx - paddingX * 2;
+    const contentHeight = Math.max(120, canvasHeightPx - contentTop - contentBottomPadding);
+    const textColor = theme === 'dark' ? '#f8fafc' : '#0f172a';
+    const subtleTextColor = theme === 'dark' ? '#94a3b8' : '#64748b';
+    const boxFill = theme === 'dark' ? 'rgba(255,255,255,0.04)' : '#f8fafc';
+    const boxStroke = theme === 'dark' ? 'rgba(255,255,255,0.22)' : '#cbd5e1';
+    const highlightFill = theme === 'dark' ? 'rgba(248,175,36,0.2)' : '#fde68a';
+    const highlightStroke = theme === 'dark' ? 'rgba(248,175,36,0.55)' : '#f59e0b';
+
+    const title = new fabric.Textbox(preset.title, {
+      left: paddingX,
+      top: headerTop,
+      fontSize: Math.max(28, canvasHeightPx * 0.055),
+      fontWeight: '700',
+      fill: textColor,
+      width: Math.max(220, canvasWidthPx * 0.56),
+      editable: true,
+    });
+
+    const subtitle = new fabric.Textbox(preset.subtitle, {
+      left: paddingX,
+      top: headerTop + Math.max(40, canvasHeightPx * 0.075),
+      fontSize: Math.max(16, canvasHeightPx * 0.03),
+      fontWeight: '400',
+      fill: subtleTextColor,
+      width: Math.max(220, canvasWidthPx * 0.62),
+      editable: true,
+    });
+
+    const dateAndVenue = new fabric.Textbox(preset.date, {
+      left: canvasWidthPx - paddingX,
+      top: headerTop + Math.max(8, canvasHeightPx * 0.015),
+      originX: 'right',
+      fontSize: Math.max(13, canvasHeightPx * 0.023),
+      fontWeight: '500',
+      textAlign: 'right',
+      fill: subtleTextColor,
+      width: Math.max(180, canvasWidthPx * 0.24),
+      editable: true,
+    });
+
+    canvas.add(title, subtitle, dateAndVenue);
+
+    preset.boxes.forEach((box) => {
+      const left = paddingX + box.x * contentWidth;
+      const top = contentTop + box.y * contentHeight;
+      const width = Math.max(64, box.w * contentWidth);
+      const height = Math.max(48, box.h * contentHeight);
+
+      const rect = new fabric.Rect({
+        left,
+        top,
+        width,
+        height,
+        fill: box.highlight ? highlightFill : boxFill,
+        stroke: box.highlight ? highlightStroke : boxStroke,
+        strokeWidth: box.highlight ? 1.8 : 1.2,
+        rx: 16,
+        ry: 16,
+      });
+
+      const label = new fabric.Textbox(box.label, {
+        left: left + width / 2,
+        top: top + height / 2,
+        originX: 'center',
+        originY: 'center',
+        textAlign: 'center',
+        fontSize: Math.max(11, Math.min(16, height * 0.17)),
+        width: Math.max(56, width - 16),
+        fontWeight: box.highlight ? '700' : '500',
+        fill: textColor,
+        editable: true,
+      });
+
+      canvas.add(rect, label);
+    });
+
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+  };
+
   useImperativeHandle(ref, () => ({
     addTextAtCenter: (payload) => {
       const canvas = fabricRef.current;
@@ -401,6 +740,10 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       const left = canvas.getWidth() / 2;
       const top = canvas.getHeight() / 2;
       addShape(payload, left, top);
+    },
+    applyTemplate: (templateId) => {
+      applyTemplateToCanvas(templateId);
+      saveCanvasToStorage();
     },
     updateActiveObjectFont: (options) => {
       const canvas = fabricRef.current;

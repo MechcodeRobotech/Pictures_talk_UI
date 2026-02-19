@@ -24,6 +24,44 @@ interface CanvasProps {
   toggleTheme: () => void;
 }
 
+interface TemplatePreviewBlock {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  highlight?: boolean;
+}
+
+interface TemplateCard {
+  id: string;
+  code: string;
+  orientation: 'L' | 'P';
+  nameEn: string;
+  nameTh: string;
+  preview: TemplatePreviewBlock[];
+}
+
+const TEMPLATE_CARDS: TemplateCard[] = [
+  { id: 'l1', code: 'L1', orientation: 'L', nameEn: 'Landscape 2 Columns', nameTh: 'แนวนอน 2 คอลัมน์', preview: [{ x: 4, y: 8, w: 44, h: 84 }, { x: 52, y: 8, w: 44, h: 84 }] },
+  { id: 'l2', code: 'L2', orientation: 'L', nameEn: 'Landscape 3 Columns', nameTh: 'แนวนอน 3 คอลัมน์', preview: [{ x: 4, y: 8, w: 28, h: 84 }, { x: 36, y: 8, w: 28, h: 84 }, { x: 68, y: 8, w: 28, h: 84 }] },
+  { id: 'l3', code: 'L3', orientation: 'L', nameEn: 'Landscape 3 Columns Alt', nameTh: 'แนวนอน 3 คอลัมน์ (แบบ 2)', preview: [{ x: 4, y: 8, w: 28, h: 84 }, { x: 36, y: 8, w: 28, h: 84 }, { x: 68, y: 8, w: 28, h: 84 }] },
+  { id: 'l4', code: 'L4', orientation: 'L', nameEn: 'Highlight + 4 Columns', nameTh: 'ไฮไลต์ + 4 คอลัมน์', preview: [{ x: 4, y: 8, w: 92, h: 20, highlight: true }, { x: 4, y: 33, w: 21, h: 59 }, { x: 28, y: 33, w: 21, h: 59 }, { x: 52, y: 33, w: 21, h: 59 }, { x: 76, y: 33, w: 20, h: 59 }] },
+  { id: 'l5', code: 'L5', orientation: 'L', nameEn: 'Landscape 4 Columns', nameTh: 'แนวนอน 4 คอลัมน์', preview: [{ x: 4, y: 8, w: 21, h: 84 }, { x: 28, y: 8, w: 21, h: 84 }, { x: 52, y: 8, w: 21, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }] },
+  { id: 'l6', code: 'L6', orientation: 'L', nameEn: 'Highlight + 6 Columns', nameTh: 'ไฮไลต์ + 6 คอลัมน์', preview: [{ x: 4, y: 8, w: 92, h: 18, highlight: true }, { x: 4, y: 30, w: 13.5, h: 62 }, { x: 20, y: 30, w: 13.5, h: 62 }, { x: 36, y: 30, w: 13.5, h: 62 }, { x: 52, y: 30, w: 13.5, h: 62 }, { x: 68, y: 30, w: 13.5, h: 62 }, { x: 84, y: 30, w: 12, h: 62 }] },
+  { id: 'l7', code: 'L7', orientation: 'L', nameEn: 'Landscape 5 Columns', nameTh: 'แนวนอน 5 คอลัมน์', preview: [{ x: 4, y: 8, w: 17, h: 84 }, { x: 24, y: 8, w: 17, h: 84 }, { x: 44, y: 8, w: 17, h: 84 }, { x: 64, y: 8, w: 17, h: 84 }, { x: 84, y: 8, w: 12, h: 84 }] },
+  { id: 'l8', code: 'L8', orientation: 'L', nameEn: 'Two Row Timeline', nameTh: 'ไทม์ไลน์ 2 แถว', preview: [{ x: 4, y: 8, w: 21, h: 38 }, { x: 28, y: 8, w: 21, h: 38 }, { x: 52, y: 8, w: 21, h: 38 }, { x: 76, y: 8, w: 20, h: 38 }, { x: 4, y: 54, w: 21, h: 38 }, { x: 28, y: 54, w: 21, h: 38 }, { x: 52, y: 54, w: 21, h: 38 }, { x: 76, y: 54, w: 20, h: 38 }] },
+  { id: 'l9', code: 'L9', orientation: 'L', nameEn: '4 Phases + Highlight', nameTh: '4 เฟส + ไฮไลต์', preview: [{ x: 4, y: 8, w: 22, h: 84 }, { x: 28, y: 8, w: 22, h: 84 }, { x: 52, y: 8, w: 22, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }, { x: 33, y: 14, w: 34, h: 16, highlight: true }] },
+  { id: 'p1', code: 'P1', orientation: 'P', nameEn: 'Portrait 2x2', nameTh: 'แนวตั้ง 2x2', preview: [{ x: 4, y: 8, w: 44, h: 40 }, { x: 52, y: 8, w: 44, h: 40 }, { x: 4, y: 52, w: 44, h: 40 }, { x: 52, y: 52, w: 44, h: 40 }] },
+  { id: 'p2', code: 'P2', orientation: 'P', nameEn: '2 Highlights + 2 Columns', nameTh: '2 ไฮไลต์ + 2 คอลัมน์', preview: [{ x: 4, y: 8, w: 44, h: 16, highlight: true }, { x: 52, y: 8, w: 44, h: 16, highlight: true }, { x: 4, y: 28, w: 44, h: 64 }, { x: 52, y: 28, w: 44, h: 64 }] },
+  { id: 'p3', code: 'P3', orientation: 'P', nameEn: 'Portrait 2 Columns', nameTh: 'แนวตั้ง 2 คอลัมน์', preview: [{ x: 4, y: 8, w: 44, h: 84 }, { x: 52, y: 8, w: 44, h: 84 }] },
+  { id: 'p4', code: 'P4', orientation: 'P', nameEn: 'Portrait 3 Columns', nameTh: 'แนวตั้ง 3 คอลัมน์', preview: [{ x: 4, y: 8, w: 28, h: 84 }, { x: 36, y: 8, w: 28, h: 84 }, { x: 68, y: 8, w: 28, h: 84 }] },
+  { id: 'p5', code: 'P5', orientation: 'P', nameEn: 'Portrait 4 Columns', nameTh: 'แนวตั้ง 4 คอลัมน์', preview: [{ x: 4, y: 8, w: 21, h: 84 }, { x: 28, y: 8, w: 21, h: 84 }, { x: 52, y: 8, w: 21, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }] },
+  { id: 'p6', code: 'P6', orientation: 'P', nameEn: 'Portrait Grid 2x2', nameTh: 'แนวตั้งตาราง 2x2', preview: [{ x: 4, y: 8, w: 44, h: 40 }, { x: 52, y: 8, w: 44, h: 40 }, { x: 4, y: 52, w: 44, h: 40 }, { x: 52, y: 52, w: 44, h: 40 }] },
+  { id: 'p7', code: 'P7', orientation: 'P', nameEn: 'Highlight + 4 Columns', nameTh: 'ไฮไลต์ + 4 คอลัมน์', preview: [{ x: 4, y: 8, w: 92, h: 18, highlight: true }, { x: 4, y: 30, w: 21, h: 62 }, { x: 28, y: 30, w: 21, h: 62 }, { x: 52, y: 30, w: 21, h: 62 }, { x: 76, y: 30, w: 20, h: 62 }] },
+  { id: 'p8', code: 'P8', orientation: 'P', nameEn: '4 Columns + Mid Highlight', nameTh: '4 คอลัมน์ + ไฮไลต์กลาง', preview: [{ x: 4, y: 8, w: 21, h: 84 }, { x: 28, y: 8, w: 21, h: 84 }, { x: 52, y: 8, w: 21, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }, { x: 34, y: 14, w: 32, h: 14, highlight: true }] },
+  { id: 'p9', code: 'P9', orientation: 'P', nameEn: 'Portrait 4 Columns Alt', nameTh: 'แนวตั้ง 4 คอลัมน์ (แบบ 2)', preview: [{ x: 4, y: 8, w: 21, h: 84 }, { x: 28, y: 8, w: 21, h: 84 }, { x: 52, y: 8, w: 21, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }] },
+];
+
 const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const { language: globalLang } = useLanguage();
 
@@ -375,6 +413,11 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     setActiveTool((current) => (current === tool ? null : tool));
   };
 
+  const handleTemplateApply = (templateId: string) => {
+    canvasStageRef.current?.applyTemplate(templateId);
+    scheduleAutoSave();
+  };
+
   useEffect(() => {
     localStorage.setItem('showProperties', JSON.stringify(showProperties));
   }, [showProperties]);
@@ -641,12 +684,61 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
         {activeTool === Tool.Images && <ImagesTool theme={theme} t={t} onSelect={handleImagePick} />}
 
         {activeTool === Tool.Templates && (
-          <div className="grid grid-cols-2 gap-3 pt-1">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className={`h-24 rounded-lg border relative overflow-hidden group cursor-pointer ${theme === 'dark' ? 'bg-white/5 border-white/10' : 'bg-gray-50 border-gray-200'}`}>
-                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </div>
-            ))}
+          <div className="pt-1 max-h-[420px] overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 gap-3">
+              {TEMPLATE_CARDS.map((template) => (
+                <button
+                  key={template.id}
+                  type="button"
+                  onClick={() => handleTemplateApply(template.id)}
+                  className={`rounded-xl border p-2 text-left transition-all group ${
+                    theme === 'dark'
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/40'
+                      : 'bg-gray-50 border-gray-200 hover:bg-white hover:border-primary/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                      template.orientation === 'L'
+                        ? 'bg-sky-500/20 text-sky-400'
+                        : 'bg-violet-500/20 text-violet-400'
+                    }`}>
+                      {template.code}
+                    </span>
+                    <span className="text-[10px] text-gray-400">{template.orientation === 'L' ? (lang === 'th' ? 'แนวนอน' : 'Landscape') : (lang === 'th' ? 'แนวตั้ง' : 'Portrait')}</span>
+                  </div>
+
+                  <div className={`relative h-24 rounded-lg overflow-hidden border ${
+                    theme === 'dark' ? 'bg-black/30 border-white/10' : 'bg-white border-gray-200'
+                  }`}>
+                    {template.preview.map((block, index) => (
+                      <div
+                        key={`${template.id}-${index}`}
+                        className={`absolute rounded-[6px] border ${
+                          block.highlight
+                            ? 'bg-primary/35 border-primary/60'
+                            : theme === 'dark'
+                              ? 'bg-white/10 border-white/20'
+                              : 'bg-slate-100 border-slate-300'
+                        }`}
+                        style={{
+                          left: `${block.x}%`,
+                          top: `${block.y}%`,
+                          width: `${block.w}%`,
+                          height: `${block.h}%`,
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  <p className={`mt-2 min-h-8 text-[11px] leading-4 font-medium ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    {lang === 'th' ? template.nameTh : template.nameEn}
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
