@@ -34,6 +34,8 @@ const ClerkAuth: React.FC<ClerkAuthProps> = ({ t }) => {
   const isAuthReady = isLoaded && isAuthLoaded && !!signIn;
   const isBlockedBySession = isAuthLoaded && isSignedIn;
   const isBusy = isSubmitting || isOAuthSubmitting;
+  const oauthRedirectUrl = `${window.location.origin}/#/sso-callback`;
+  const oauthRedirectUrlComplete = `${window.location.origin}/#/home`;
 
   useEffect(() => {
     if (isSignedIn) {
@@ -52,20 +54,21 @@ const ClerkAuth: React.FC<ClerkAuthProps> = ({ t }) => {
     try {
       await signIn.authenticateWithRedirect({
         strategy,
-        redirectUrl: '/#/sso-callback',
-        redirectUrlComplete: '/#/home',
+        redirectUrl: oauthRedirectUrl,
+        redirectUrlComplete: oauthRedirectUrlComplete,
       });
     } catch (error: unknown) {
-      const { message } = getClerkError(
+      const { code, message } = getClerkError(
         error,
         'Unable to start OAuth sign-in. Please try again.'
       );
+      console.error('OAuth sign-in failed', error);
       if (message.toLowerCase().includes('session already exists')) {
-        setIsOAuthSubmitting(false);
         navigate('/home');
         return;
       }
-      setAuthError(message);
+      setAuthError(code ? `${message} (${code})` : message);
+    } finally {
       setIsOAuthSubmitting(false);
     }
   };

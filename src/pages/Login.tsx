@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, useAuth } from '@clerk/clerk-react';
 import { Link, Navigate } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 import ClerkAuth from '../components/Login/ClerkAuth';
@@ -13,6 +13,7 @@ interface LoginProps {
 
 const Login: React.FC<LoginProps> = ({ isDarkMode, toggleTheme }) => {
   const { t } = useLanguage();
+  const { isLoaded } = useAuth();
   const backgroundStyle = {
     background: isDarkMode
       ? 'radial-gradient(circle at 10% 0%, rgba(247, 176, 37, 0.22), transparent 50%), radial-gradient(circle at 90% 20%, rgba(77, 122, 182, 0.22), transparent 45%), linear-gradient(180deg, #0b1016 0%, #111926 100%)'
@@ -24,6 +25,15 @@ const Login: React.FC<LoginProps> = ({ isDarkMode, toggleTheme }) => {
       <SignedIn>
         <Navigate to="/home" replace />
       </SignedIn>
+      {!isLoaded && (
+        <div
+          className="min-h-screen w-full flex flex-col items-center justify-center gap-3"
+          style={backgroundStyle}
+        >
+          <div className="h-8 w-8 rounded-full border-4 border-slate-300 border-t-secondary animate-spin" />
+          <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Loading authentication...</p>
+        </div>
+      )}
       <SignedOut>
         <div
           className="min-h-screen w-full flex flex-col animate-fadeIn transition-colors duration-300 relative overflow-hidden"
