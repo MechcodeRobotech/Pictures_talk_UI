@@ -6,9 +6,7 @@ import ThemeToggle from './Theme';
 const HEADER_HEIGHT_PX = 88;
 const HEADER_PADDING_X_SM_PX = 16;
 const HEADER_PADDING_X_MD_PX = 32;
-const LOGO_MAX_WIDTH_PX = 448;
 const ACTION_GAP_PX = 12;
-const BREAKPOINT_SM_PX = 640;
 const BREAKPOINT_MD_PX = 768;
 
 interface HeaderProps {
@@ -45,9 +43,6 @@ const HeaderBar = styled.header`
   .logo-wrapper {
     position: relative;
     z-index: 10;
-    flex: 1;
-    max-width: ${LOGO_MAX_WIDTH_PX}px;
-    min-width: 0;
     display: flex;
     align-items: center;
   }
@@ -55,48 +50,20 @@ const HeaderBar = styled.header`
   .logo-inner {
     display: flex;
     align-items: center;
-    gap: 14px;
-    min-width: 0;
   }
 
   .brand-mark {
-    width: 48px;
-    height: 48px;
-    border-radius: 16px;
-    display: grid;
-    place-items: center;
-    background: linear-gradient(135deg, rgba(248, 175, 36, 0.96), rgba(255, 207, 92, 0.9));
-    box-shadow: 0 16px 32px rgba(248, 175, 36, 0.28);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     flex-shrink: 0;
   }
 
-  .brand-text {
-    display: none;
-    min-width: 0;
-  }
-
-  .brand-title {
-    margin: 0;
-    font-size: 16px;
-    line-height: 1.1;
-    letter-spacing: -0.02em;
-    color: var(--ui-text);
-    font-weight: 800;
-  }
-
-  .brand-caption {
-    margin: 4px 0 0;
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--ui-text-muted);
-  }
-
   .logo {
-    height: 28px;
+    height: 48px;
     width: auto;
     object-fit: contain;
+    display: block;
   }
 
   .actions {
@@ -105,11 +72,6 @@ const HeaderBar = styled.header`
     gap: ${ACTION_GAP_PX}px;
   }
 
-  @media (min-width: ${BREAKPOINT_SM_PX}px) {
-    .brand-text {
-      display: block;
-    }
-  }
 `;
 
 const Header: React.FC<HeaderProps> = ({ toggleTheme, isDarkMode }) => (
@@ -122,10 +84,6 @@ const Header: React.FC<HeaderProps> = ({ toggleTheme, isDarkMode }) => (
             alt="Pictures Talk"
             className="logo"
           />
-        </div>
-        <div className="brand-text">
-          <p className="brand-title">Pictures Talk</p>
-          <p className="brand-caption">AI Meeting Workspace</p>
         </div>
       </div>
     </div>
