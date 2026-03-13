@@ -1,4 +1,7 @@
 {
+<<<<<<< HEAD
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+=======
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
@@ -9,4 +12,5 @@
   ],
   "cleanUrls": true,
   "trailingSlash": false
+>>>>>>> 7d100022a7a4e4f0d8b7e944a854eb33e8c165a8
 }
