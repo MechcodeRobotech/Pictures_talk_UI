@@ -1,7 +1,7 @@
 import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import * as fabric from 'fabric';
 import { DELETE_ICON_SVG } from '../Common/Add';
-import { MeetingTemplateDraft, Theme, Tool } from '../../types';
+import { Theme, Tool } from '../../types';
 
 type DragPayload =
   | {
@@ -31,7 +31,10 @@ export type CanvasStageHandle = {
   addIconAtCenter: (payload: DragPayload & { type: 'icon' }) => void;
   addShapeAtCenter: (payload: DragPayload & { type: 'shape' }) => void;
   applyTemplate: (templateId: string) => void;
-  applyMeetingTemplate: (draft: MeetingTemplateDraft) => void;
+  bringSelectionForward: () => void;
+  sendSelectionBackward: () => void;
+  bringSelectionToFront: () => void;
+  sendSelectionToBack: () => void;
   updateActiveObjectFont: (options: { fontFamily?: string; fontSize?: number; fontWeight?: string; textAlign?: string; fill?: string }) => void;
   updateActiveObjectStroke: (options: { stroke?: string; strokeWidth?: number }) => void;
   updateActiveObjectFill: (options: { fill: string }) => void;
@@ -616,7 +619,7 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const applyTemplateToCanvas = (templateId: string, draft?: MeetingTemplateDraft) => {
+  const applyTemplateToCanvas = (templateId: string) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
 
@@ -641,9 +644,7 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     const highlightFill = theme === 'dark' ? 'rgba(248,175,36,0.2)' : '#fde68a';
     const highlightStroke = theme === 'dark' ? 'rgba(248,175,36,0.55)' : '#f59e0b';
 
-    const sectionLabels = draft?.sections?.length ? draft.sections : preset.boxes.map((box) => box.label);
-
-    const title = new fabric.Textbox(draft?.title || preset.title, {
+    const title = new fabric.Textbox(preset.title, {
       left: paddingX,
       top: headerTop,
       fontSize: Math.max(28, canvasHeightPx * 0.055),
@@ -653,7 +654,7 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       editable: true,
     });
 
-    const subtitle = new fabric.Textbox(draft?.subtitle || preset.subtitle, {
+    const subtitle = new fabric.Textbox(preset.subtitle, {
       left: paddingX,
       top: headerTop + Math.max(40, canvasHeightPx * 0.075),
       fontSize: Math.max(16, canvasHeightPx * 0.03),
@@ -663,7 +664,7 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       editable: true,
     });
 
-    const dateAndVenue = new fabric.Textbox(draft?.dateLabel || preset.date, {
+    const dateAndVenue = new fabric.Textbox(preset.date, {
       left: canvasWidthPx - paddingX,
       top: headerTop + Math.max(8, canvasHeightPx * 0.015),
       originX: 'right',
@@ -677,7 +678,7 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
 
     canvas.add(title, subtitle, dateAndVenue);
 
-    preset.boxes.forEach((box, index) => {
+    preset.boxes.forEach((box) => {
       const left = paddingX + box.x * contentWidth;
       const top = contentTop + box.y * contentHeight;
       const width = Math.max(64, box.w * contentWidth);
@@ -695,7 +696,7 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
         ry: 16,
       });
 
-      const label = new fabric.Textbox(sectionLabels[index] || box.label, {
+      const label = new fabric.Textbox(box.label, {
         left: left + width / 2,
         top: top + height / 2,
         originX: 'center',
@@ -748,8 +749,60 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       applyTemplateToCanvas(templateId);
       saveCanvasToStorage();
     },
-    applyMeetingTemplate: (draft) => {
-      applyTemplateToCanvas(draft.templateId, draft);
+    bringSelectionForward: () => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      const active = canvas.getActiveObject();
+      if (!active) return;
+
+      if (active.type === 'activeSelection') {
+        (active as fabric.ActiveSelection).getObjects().forEach((object) => canvas.bringObjectForward(object));
+      } else {
+        canvas.bringObjectForward(active);
+      }
+      canvas.requestRenderAll();
+      saveCanvasToStorage();
+    },
+    sendSelectionBackward: () => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      const active = canvas.getActiveObject();
+      if (!active) return;
+
+      if (active.type === 'activeSelection') {
+        [...(active as fabric.ActiveSelection).getObjects()].reverse().forEach((object) => canvas.sendObjectBackwards(object));
+      } else {
+        canvas.sendObjectBackwards(active);
+      }
+      canvas.requestRenderAll();
+      saveCanvasToStorage();
+    },
+    bringSelectionToFront: () => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      const active = canvas.getActiveObject();
+      if (!active) return;
+
+      if (active.type === 'activeSelection') {
+        (active as fabric.ActiveSelection).getObjects().forEach((object) => canvas.bringObjectToFront(object));
+      } else {
+        canvas.bringObjectToFront(active);
+      }
+      canvas.requestRenderAll();
+      saveCanvasToStorage();
+    },
+    sendSelectionToBack: () => {
+      const canvas = fabricRef.current;
+      if (!canvas) return;
+      const active = canvas.getActiveObject();
+      if (!active) return;
+
+      if (active.type === 'activeSelection') {
+        [...(active as fabric.ActiveSelection).getObjects()].reverse().forEach((object) => canvas.sendObjectToBack(object));
+      } else {
+        canvas.sendObjectToBack(active);
+      }
+      canvas.requestRenderAll();
       saveCanvasToStorage();
     },
     updateActiveObjectFont: (options) => {

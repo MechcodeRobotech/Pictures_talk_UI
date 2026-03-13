@@ -3,7 +3,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 import Keywords, { fallbackKeywords, keywordPalette, KeywordItem } from '../components/Summary/Keywords';
 import { MeetingTemplateDraft } from '../types';
-import { createMeetingTemplateDraft } from '../lib/canvasApi';
 
 const SUMMARY_SECTION_MAX_CARDS = 3;
 const SUMMARY_TITLE_WORD_LIMIT = 6;
@@ -119,8 +118,6 @@ const Summary: React.FC = () => {
   const [summaryRatio, setSummaryRatio] = React.useState<SummaryRatioValue>('100');
   const [isSummaryRatioOpen, setIsSummaryRatioOpen] = React.useState(false);
   const [isCanvasSizeDialogOpen, setIsCanvasSizeDialogOpen] = React.useState(false);
-  const [isCreatingCanvasTemplate, setIsCreatingCanvasTemplate] = React.useState(false);
-  const [canvasTemplateError, setCanvasTemplateError] = React.useState<string | null>(null);
   const [selectedCanvasSizeId, setSelectedCanvasSizeId] = React.useState<(typeof CANVAS_SIZE_PRESETS)[number]['id'] | 'custom'>('presentation');
   const [customCanvasWidth, setCustomCanvasWidth] = React.useState('900');
   const [customCanvasHeight, setCustomCanvasHeight] = React.useState('506');
@@ -502,7 +499,6 @@ const Summary: React.FC = () => {
 
   const handleCreateCanvasTemplate = React.useCallback(() => {
     if (!canvasDraft) return;
-    setCanvasTemplateError(null);
     setIsCanvasSizeDialogOpen(true);
   }, [canvasDraft]);
 
@@ -518,42 +514,20 @@ const Summary: React.FC = () => {
     if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
       return;
     }
-
-    const run = async () => {
-      setIsCreatingCanvasTemplate(true);
-      setCanvasTemplateError(null);
-      try {
-        let nextDraft: MeetingTemplateDraft = {
-          ...canvasDraft,
-          canvasWidth: width,
-          canvasHeight: height,
-        };
-
-        if (meetingId) {
-          const generatedDraft = await createMeetingTemplateDraft(meetingId, {
-            language: 'th',
-            canvas_width: width,
-            canvas_height: height,
-          });
-          nextDraft = generatedDraft;
-        }
-
-        localStorage.setItem(CANVAS_DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
-        navigate('/canvas', {
-          state: {
-            meetingTemplateDraft: nextDraft,
-          },
-        });
-        setIsCanvasSizeDialogOpen(false);
-      } catch (error) {
-        setCanvasTemplateError(error instanceof Error ? error.message : 'Failed to create canvas template.');
-      } finally {
-        setIsCreatingCanvasTemplate(false);
-      }
+    const nextDraft: MeetingTemplateDraft = {
+      ...canvasDraft,
+      canvasWidth: width,
+      canvasHeight: height,
     };
 
-    void run();
-  }, [canvasDraft, customCanvasHeight, customCanvasWidth, meetingId, navigate, selectedCanvasSizeId]);
+    localStorage.setItem(CANVAS_DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
+    navigate('/canvas', {
+      state: {
+        meetingTemplateDraft: nextDraft,
+      },
+    });
+    setIsCanvasSizeDialogOpen(false);
+  }, [canvasDraft, customCanvasHeight, customCanvasWidth, navigate, selectedCanvasSizeId]);
 
   return (
     <div className="max-w-[1400px] mx-auto animate-fadeIn">
@@ -841,13 +815,9 @@ const Summary: React.FC = () => {
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
-              {canvasTemplateError && (
-                <p className="mr-auto text-sm text-red-500">{canvasTemplateError}</p>
-              )}
               <button
                 type="button"
                 onClick={() => setIsCanvasSizeDialogOpen(false)}
-                disabled={isCreatingCanvasTemplate}
                 className="rounded-xl border border-gray-300 px-5 py-2.5 font-medium text-secondary transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
               >
                 Cancel
@@ -855,10 +825,9 @@ const Summary: React.FC = () => {
               <button
                 type="button"
                 onClick={handleConfirmCanvasTemplate}
-                disabled={isCreatingCanvasTemplate}
-                className="rounded-xl bg-primary px-6 py-2.5 font-bold text-secondary transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl bg-primary px-6 py-2.5 font-bold text-secondary transition-colors hover:bg-primary-hover"
               >
-                {isCreatingCanvasTemplate ? 'Analyzing...' : 'Create Template'}
+                Create Template
               </button>
             </div>
           </div>

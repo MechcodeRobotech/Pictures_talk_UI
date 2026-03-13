@@ -107,13 +107,12 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 
   const savedCanvasWidth = localStorage.getItem('canvasWidth');
   const savedCanvasHeight = localStorage.getItem('canvasHeight');
-  const savedBackgroundColor = localStorage.getItem('backgroundColor');
   const savedTextColor = localStorage.getItem('textColor');
   const savedStrokeColor = localStorage.getItem('strokeColor');
 
   const [canvasWidth, setCanvasWidth] = useState<number>(pendingMeetingDraft?.canvasWidth ?? (savedCanvasWidth ? parseInt(savedCanvasWidth) : 900));
   const [canvasHeight, setCanvasHeight] = useState<number>(pendingMeetingDraft?.canvasHeight ?? (savedCanvasHeight ? parseInt(savedCanvasHeight) : 506));
-  const [backgroundColor, setBackgroundColor] = useState<string>(savedBackgroundColor || (isDarkMode ? '#1e1e1e' : '#ffffff'));
+  const [backgroundColor, setBackgroundColor] = useState<string>(isDarkMode ? '#1e1e1e' : '#ffffff');
 
   const [strokeColor, setStrokeColor] = useState<string>(savedStrokeColor || (isDarkMode ? '#f8fafc' : '#0f172a'));
   const [strokeWidth, setStrokeWidth] = useState<number>(2);
@@ -126,7 +125,6 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   } | null>(null);
   const [textColor, setTextColor] = useState<string>(savedTextColor || (isDarkMode ? '#ffffff' : '#0f172a'));
   const [shapeSearch, setShapeSearch] = useState<string>('');
-  const [lastAppliedDraftId, setLastAppliedDraftId] = useState<string | null>(null);
 
   const shapeCategories = {
     basic: {
@@ -331,15 +329,6 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     };
   }, []); // Run only on mount
 
-  useEffect(() => {
-    if (isLoadingFromBackend || !pendingMeetingDraft || !canvasStageRef.current) return;
-    if (lastAppliedDraftId === pendingMeetingDraft.draftId) return;
-
-    canvasStageRef.current.applyMeetingTemplate(pendingMeetingDraft);
-    setLastAppliedDraftId(pendingMeetingDraft.draftId);
-    localStorage.removeItem('meetingTemplateDraft');
-  }, [isLoadingFromBackend, lastAppliedDraftId, pendingMeetingDraft]);
-
   // Save on dimension change
   useEffect(() => {
     localStorage.setItem('canvasWidth', canvasWidth.toString());
@@ -506,6 +495,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 
   // Reset text color when theme changes
   useEffect(() => {
+    setBackgroundColor(isDarkMode ? '#1e1e1e' : '#ffffff');
     setTextColor(isDarkMode ? '#ffffff' : '#0f172a');
   }, [isDarkMode]);
 

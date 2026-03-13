@@ -111,6 +111,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
               onStrokeChange={onStrokeChange}
               onShapeFillChange={onShapeFillChange}
               hasSelection={hasSelection}
+              canvasRef={canvasRef}
             />
           ),
         },
