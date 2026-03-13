@@ -39,7 +39,6 @@ export type CanvasStageHandle = {
   loadCanvas: () => void;
   getCanvasData: () => any;
   loadCanvasFromData: (data: any) => void;
-  exportAsImage: () => string | null;
 };
 
 interface CanvasStageProps {
@@ -53,8 +52,6 @@ interface CanvasStageProps {
   canvasWidth: number;
   canvasHeight: number;
   backgroundColor: string;
-  isLoading?: boolean;
-  onExport: () => void;
   onSelectionChange?: (payload: {
     hasSelection: boolean;
     strokeColor: string | null;
@@ -413,13 +410,10 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
   canvasWidth,
   canvasHeight,
   backgroundColor,
-  isLoading,
-  onExport,
   onSelectionChange,
 }, ref) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [objectCount, setObjectCount] = useState(0);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
@@ -436,19 +430,6 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     } catch (error) {
       console.error('Error saving canvas:', error);
     }
-  };
-
-  const updateObjectCount = () => {
-    const canvas = fabricRef.current;
-    if (!canvas) return;
-    setObjectCount(canvas.getObjects().length);
-  };
-
-  const clearCanvasObjects = () => {
-    const canvas = fabricRef.current;
-    if (!canvas) return;
-    canvas.getObjects().forEach((object) => canvas.remove(object));
-    canvas.discardActiveObject();
   };
 
   const loadCanvasFromStorage = () => {
@@ -505,10 +486,8 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       if (event.target) {
         applyCustomControlsToObject(event.target);
       }
-      updateObjectCount();
     };
     canvas.on('object:added', handleObjectAdded);
-    canvas.on('object:removed', updateObjectCount);
 
     setTimeout(() => {
       loadCanvasFromStorage();
@@ -575,7 +554,6 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
 
     return () => {
       canvas.off('object:added', handleObjectAdded);
-      canvas.off('object:removed', updateObjectCount);
       canvas.off('selection:created', handleSelectionEvent);
       canvas.off('selection:updated', handleSelectionEvent);
       canvas.off('selection:cleared', handleSelectionEvent);
@@ -645,7 +623,8 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     const preset = TEMPLATE_PRESETS.find((item) => item.id === templateId);
     if (!preset) return;
 
-    clearCanvasObjects();
+    const objects = canvas.getObjects();
+    objects.forEach((object) => canvas.remove(object));
 
     const canvasWidthPx = canvas.getWidth();
     const canvasHeightPx = canvas.getHeight();
@@ -703,7 +682,6 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       const top = contentTop + box.y * contentHeight;
       const width = Math.max(64, box.w * contentWidth);
       const height = Math.max(48, box.h * contentHeight);
-      const labelText = sectionLabels[index] || box.label;
 
       const rect = new fabric.Rect({
         left,
@@ -717,7 +695,7 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
         ry: 16,
       });
 
-      const label = new fabric.Textbox(labelText, {
+      const label = new fabric.Textbox(sectionLabels[index] || box.label, {
         left: left + width / 2,
         top: top + height / 2,
         originX: 'center',
@@ -897,30 +875,16 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
         console.error('Error loading canvas from data:', error);
       }
     },
-    exportAsImage: () => {
-      const canvas = fabricRef.current;
-      if (!canvas) return null;
-      try {
-        return canvas.toDataURL({
-          format: 'png',
-          multiplier: 2,
-          enableRetinaScaling: true,
-        });
-      } catch (error) {
-        console.error('Error exporting canvas:', error);
-        return null;
-      }
-    },
   }));
 
   const addIcon = (payload: DragPayload & { type: 'icon' }, left: number, top: number) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
 
-    const iconUrl = payload.url.toLowerCase();
-    const isSvgIcon = iconUrl.endsWith('.svg') || iconUrl.startsWith('data:image/svg+xml');
+    const normalizedUrl = payload.url.toLowerCase();
+    const isSvg = normalizedUrl.endsWith('.svg');
 
-    if (!isSvgIcon) {
+    if (!isSvg) {
       fabric.FabricImage.fromURL(payload.url, { crossOrigin: 'anonymous' })
         .then((img) => {
           const scale = BASE_ICON_SIZE / Math.max(img.width || 1, img.height || 1);
@@ -1238,137 +1202,32 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
   };
 
   return (
-    <main className={`relative flex flex-1 flex-col overflow-hidden rounded-[34px] border ${
-      theme === 'dark'
-        ? 'border-white/10 bg-[#0b1220]/72 shadow-[0_24px_64px_rgba(2,6,23,0.32)]'
-        : 'border-white/80 bg-white/78 shadow-[0_24px_54px_rgba(15,23,42,0.08)]'
-    }`}>
-      <div className={`flex items-center justify-between gap-4 border-b px-6 py-5 ${
-        theme === 'dark' ? 'border-white/10' : 'border-slate-200/80'
-      }`}>
-        <div className="min-w-0">
-          <p className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-            {t('canvas_workspace_label')}
-          </p>
-          <h2 className={`mt-2 text-xl font-semibold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-            {t('canvas_title')}
-          </h2>
-          <p className={`mt-1 text-sm leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-            {activeTool ? t('canvas_toolbar_desc') : t('canvas_desc')}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className={`hidden rounded-full px-3 py-2 text-xs font-medium md:block ${
-            theme === 'dark' ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-100 text-slate-600'
-          }`}>
-            {isLoading ? t('canvas_loading') : `${canvasWidth} × ${canvasHeight}px`}
-          </div>
-          <button
-            type="button"
-            onClick={onExport}
-            className="rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-navy transition-colors hover:bg-primary-hover"
-          >
-            {t('export')}
-          </button>
-          <button
-            type="button"
-            aria-label={t('canvas_properties_toggle')}
-            onClick={onToggleProperties}
-            className={`rounded-2xl border p-3 transition-all ${
-              showProperties
-                ? 'border-primary/30 bg-primary/12 text-primary'
-                : theme === 'dark'
-                  ? 'border-white/10 text-slate-400 hover:bg-white/[0.04] hover:text-white'
-                  : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]">
-              {showProperties ? 'dock_to_right' : 'dock_to_left'}
-            </span>
-          </button>
-        </div>
-      </div>
-      <div className={`flex items-center justify-between gap-4 border-b px-6 py-4 ${theme === 'dark' ? 'border-white/8' : 'border-slate-200/70'}`}>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] ${
-            theme === 'dark' ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-100 text-slate-600'
-          }`}>
-            {activeTool ? t('canvas_toolbar_label') : t('canvas_selection_label')}
+    <main className="flex-1 rounded-3xl relative overflow-hidden flex flex-col">
+      <div className="flex items-center justify-end px-4 py-3">
+        <button
+          type="button"
+          onClick={onToggleProperties}
+          className={`p-2.5 rounded-xl transition-all ${
+            showProperties ? 'bg-primary/20 text-primary' : 'hover:bg-black/5 dark:hover:bg-white/10'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[20px]">
+            {showProperties ? 'dock_to_right' : 'dock_to_left'}
           </span>
-          <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-            {activeTool ? t('canvas_drop_hint') : t('canvas_selection_desc')}
-          </span>
-        </div>
-        <div className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
-          theme === 'dark' ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-100 text-slate-600'
-        }`}>
-          {objectCount} {t('canvas_items')}
-        </div>
+        </button>
       </div>
-      <div className="relative flex flex-1 items-start justify-center overflow-auto p-6 md:p-10 xl:p-12">
-        <div className={`absolute inset-5 rounded-[30px] ${
-          theme === 'dark'
-            ? 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.04),transparent_60%)]'
-            : 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.9),rgba(241,245,249,0.3)_58%)]'
-        }`} />
-        <div className={`absolute inset-5 rounded-[30px] ${theme === 'dark' ? 'bg-white/[0.02]' : 'bg-slate-100/70'}`} />
-        <div className={`absolute inset-5 app-grid-bg opacity-30 ${theme === 'dark' ? 'text-white' : 'text-slate-300'}`} />
+      <div className="flex-1 relative overflow-auto flex items-start justify-center p-12">
         <div
           ref={wrapperRef}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           style={{ width: `${canvasWidth}px`, height: `${canvasHeight}px` }}
-          className={`relative z-10 shrink-0 rounded-[30px] border shadow-[0_32px_80px_rgba(15,23,42,0.16)] ${
-            theme === 'dark' ? 'border-white/10 bg-[#111827]' : 'border-white bg-white'
+          className={`relative border-2 shadow-2xl rounded-3xl shrink-0 ${
+            theme === 'dark' ? 'border-white/10' : 'border-gray-200'
           } ${isDragOver ? 'ring-2 ring-primary/70' : ''}`}
         >
-          <div className={`pointer-events-none absolute inset-x-6 top-5 z-10 flex items-center justify-between text-[11px] font-medium ${
-            theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
-          }`}>
-            <span>{canvasWidth} px</span>
-            <span>{canvasHeight} px</span>
-          </div>
-          <canvas ref={canvasRef} className="h-full w-full rounded-[30px]" />
-          {objectCount === 0 && !isLoading && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8">
-              <div className={`max-w-[440px] rounded-[30px] border px-7 py-6 text-left ${
-                theme === 'dark'
-                  ? 'border-white/10 bg-[#0b1220]/82 text-slate-300 shadow-[0_24px_48px_rgba(2,6,23,0.35)]'
-                  : 'border-white bg-white/94 text-slate-600 shadow-[0_20px_36px_rgba(15,23,42,0.12)]'
-              }`}>
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary/14 text-primary">
-                  <span className="material-symbols-outlined text-[24px]">draw</span>
-                </div>
-                <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{t('canvas_empty_title')}</h3>
-                <p className="mt-2 text-sm leading-6">{t('canvas_empty_desc')}</p>
-                <div className="mt-5 grid gap-3">
-                  {[
-                    { title: t('canvas_empty_step_tools'), desc: t('canvas_empty_step_tools_desc') },
-                    { title: t('canvas_empty_step_add'), desc: t('canvas_empty_step_add_desc') },
-                    { title: t('canvas_empty_step_edit'), desc: t('canvas_empty_step_edit_desc') },
-                  ].map((item) => (
-                    <div
-                      key={item.title}
-                      className={`rounded-2xl border px-4 py-3 ${
-                        theme === 'dark' ? 'border-white/8 bg-white/[0.03]' : 'border-slate-200 bg-slate-50'
-                      }`}
-                    >
-                      <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{item.title}</p>
-                      <p className={`mt-1 text-xs leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-          {isDragOver && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[30px] bg-primary/10">
-              <div className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-navy">
-                {t('canvas_drop_hint')}
-              </div>
-            </div>
-          )}
+          <canvas ref={canvasRef} className="w-full h-full rounded-3xl" />
         </div>
       </div>
     </main>

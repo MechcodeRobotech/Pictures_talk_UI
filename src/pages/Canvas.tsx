@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 import { MeetingTemplateDraft, Tool, Lang, Theme } from '../types';
@@ -13,13 +13,12 @@ import PencilTool from '../components/Canvas/Tool/Pencil';
 import TextTool from '../components/Canvas/Tool/Text';
 import ShapeIcon from '../components/Canvas/Tool/ShapeIcon';
 import { TRANSLATIONS, COLORS } from './constants';
-import { getUntitledProjectId, createCanvasDocument, updateCanvasDocument, getCanvasDocument } from '../lib/canvasApi';
+import { getUntitledProjectId, createCanvasDocument, updateCanvasDocument, getCanvasDocument, type CanvasDocument } from '../lib/canvasApi';
 
 const DRAG_DATA_KEY = 'application/x-canvas-item';
 const POPUP_OFFSET_Y_PX = -40;
 const AUTO_SAVE_DEBOUNCE_MS = 3000;
 const AUTO_SAVE_INTERVAL_MS = 30000;
-const CANVAS_DRAFT_STORAGE_KEY = 'meetingTemplateDraft';
 
 interface CanvasProps {
   isDarkMode: boolean;
@@ -50,7 +49,7 @@ interface TemplateCard {
 const TEMPLATE_CARDS: TemplateCard[] = [
   { id: 'l1', code: 'L1', orientation: 'L', nameEn: 'Landscape 2 Columns', nameTh: 'แนวนอน 2 คอลัมน์', preview: [{ x: 4, y: 8, w: 44, h: 84 }, { x: 52, y: 8, w: 44, h: 84 }] },
   { id: 'l2', code: 'L2', orientation: 'L', nameEn: 'Landscape 3 Columns', nameTh: 'แนวนอน 3 คอลัมน์', preview: [{ x: 4, y: 8, w: 28, h: 84 }, { x: 36, y: 8, w: 28, h: 84 }, { x: 68, y: 8, w: 28, h: 84 }] },
-  { id: 'l3', code: 'L3', orientation: 'L', nameEn: 'Landscape 3 Columns Alt', nameTh: 'แนวนอน 3 คอลัมน์ แบบ 2', preview: [{ x: 4, y: 8, w: 28, h: 84 }, { x: 36, y: 8, w: 28, h: 84 }, { x: 68, y: 8, w: 28, h: 84 }] },
+  { id: 'l3', code: 'L3', orientation: 'L', nameEn: 'Landscape 3 Columns Alt', nameTh: 'แนวนอน 3 คอลัมน์ (แบบ 2)', preview: [{ x: 4, y: 8, w: 28, h: 84 }, { x: 36, y: 8, w: 28, h: 84 }, { x: 68, y: 8, w: 28, h: 84 }] },
   { id: 'l4', code: 'L4', orientation: 'L', nameEn: 'Highlight + 4 Columns', nameTh: 'ไฮไลต์ + 4 คอลัมน์', preview: [{ x: 4, y: 8, w: 92, h: 20, highlight: true }, { x: 4, y: 33, w: 21, h: 59 }, { x: 28, y: 33, w: 21, h: 59 }, { x: 52, y: 33, w: 21, h: 59 }, { x: 76, y: 33, w: 20, h: 59 }] },
   { id: 'l5', code: 'L5', orientation: 'L', nameEn: 'Landscape 4 Columns', nameTh: 'แนวนอน 4 คอลัมน์', preview: [{ x: 4, y: 8, w: 21, h: 84 }, { x: 28, y: 8, w: 21, h: 84 }, { x: 52, y: 8, w: 21, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }] },
   { id: 'l6', code: 'L6', orientation: 'L', nameEn: 'Highlight + 6 Columns', nameTh: 'ไฮไลต์ + 6 คอลัมน์', preview: [{ x: 4, y: 8, w: 92, h: 18, highlight: true }, { x: 4, y: 30, w: 13.5, h: 62 }, { x: 20, y: 30, w: 13.5, h: 62 }, { x: 36, y: 30, w: 13.5, h: 62 }, { x: 52, y: 30, w: 13.5, h: 62 }, { x: 68, y: 30, w: 13.5, h: 62 }, { x: 84, y: 30, w: 12, h: 62 }] },
@@ -62,81 +61,29 @@ const TEMPLATE_CARDS: TemplateCard[] = [
   { id: 'p3', code: 'P3', orientation: 'P', nameEn: 'Portrait 2 Columns', nameTh: 'แนวตั้ง 2 คอลัมน์', preview: [{ x: 4, y: 8, w: 44, h: 84 }, { x: 52, y: 8, w: 44, h: 84 }] },
   { id: 'p4', code: 'P4', orientation: 'P', nameEn: 'Portrait 3 Columns', nameTh: 'แนวตั้ง 3 คอลัมน์', preview: [{ x: 4, y: 8, w: 28, h: 84 }, { x: 36, y: 8, w: 28, h: 84 }, { x: 68, y: 8, w: 28, h: 84 }] },
   { id: 'p5', code: 'P5', orientation: 'P', nameEn: 'Portrait 4 Columns', nameTh: 'แนวตั้ง 4 คอลัมน์', preview: [{ x: 4, y: 8, w: 21, h: 84 }, { x: 28, y: 8, w: 21, h: 84 }, { x: 52, y: 8, w: 21, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }] },
-  { id: 'p6', code: 'P6', orientation: 'P', nameEn: 'Portrait Grid 2x2', nameTh: 'ตารางแนวตั้ง 2x2', preview: [{ x: 4, y: 8, w: 44, h: 40 }, { x: 52, y: 8, w: 44, h: 40 }, { x: 4, y: 52, w: 44, h: 40 }, { x: 52, y: 52, w: 44, h: 40 }] },
+  { id: 'p6', code: 'P6', orientation: 'P', nameEn: 'Portrait Grid 2x2', nameTh: 'แนวตั้งตาราง 2x2', preview: [{ x: 4, y: 8, w: 44, h: 40 }, { x: 52, y: 8, w: 44, h: 40 }, { x: 4, y: 52, w: 44, h: 40 }, { x: 52, y: 52, w: 44, h: 40 }] },
   { id: 'p7', code: 'P7', orientation: 'P', nameEn: 'Highlight + 4 Columns', nameTh: 'ไฮไลต์ + 4 คอลัมน์', preview: [{ x: 4, y: 8, w: 92, h: 18, highlight: true }, { x: 4, y: 30, w: 21, h: 62 }, { x: 28, y: 30, w: 21, h: 62 }, { x: 52, y: 30, w: 21, h: 62 }, { x: 76, y: 30, w: 20, h: 62 }] },
   { id: 'p8', code: 'P8', orientation: 'P', nameEn: '4 Columns + Mid Highlight', nameTh: '4 คอลัมน์ + ไฮไลต์กลาง', preview: [{ x: 4, y: 8, w: 21, h: 84 }, { x: 28, y: 8, w: 21, h: 84 }, { x: 52, y: 8, w: 21, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }, { x: 34, y: 14, w: 32, h: 14, highlight: true }] },
-  { id: 'p9', code: 'P9', orientation: 'P', nameEn: 'Portrait 4 Columns Alt', nameTh: 'แนวตั้ง 4 คอลัมน์ แบบ 2', preview: [{ x: 4, y: 8, w: 21, h: 84 }, { x: 28, y: 8, w: 21, h: 84 }, { x: 52, y: 8, w: 21, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }] },
+  { id: 'p9', code: 'P9', orientation: 'P', nameEn: 'Portrait 4 Columns Alt', nameTh: 'แนวตั้ง 4 คอลัมน์ (แบบ 2)', preview: [{ x: 4, y: 8, w: 21, h: 84 }, { x: 28, y: 8, w: 21, h: 84 }, { x: 52, y: 8, w: 21, h: 84 }, { x: 76, y: 8, w: 20, h: 84 }] },
 ];
-
-const TEMPLATE_NAME_TH: Record<string, string> = {
-  l1: '\u0E41\u0E19\u0E27\u0E19\u0E2D\u0E19 2 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  l2: '\u0E41\u0E19\u0E27\u0E19\u0E2D\u0E19 3 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  l3: '\u0E41\u0E19\u0E27\u0E19\u0E2D\u0E19 3 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C \u0E41\u0E1A\u0E1A 2',
-  l4: '\u0E44\u0E2E\u0E44\u0E25\u0E15\u0E4C + 4 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  l5: '\u0E41\u0E19\u0E27\u0E19\u0E2D\u0E19 4 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  l6: '\u0E44\u0E2E\u0E44\u0E25\u0E15\u0E4C + 6 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  l7: '\u0E41\u0E19\u0E27\u0E19\u0E2D\u0E19 5 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  l8: '\u0E44\u0E17\u0E21\u0E4C\u0E44\u0E25\u0E19\u0E4C 2 \u0E41\u0E16\u0E27',
-  l9: '4 \u0E40\u0E1F\u0E2A + \u0E44\u0E2E\u0E44\u0E25\u0E15\u0E4C',
-  p1: '\u0E41\u0E19\u0E27\u0E15\u0E31\u0E49\u0E07 2x2',
-  p2: '2 \u0E44\u0E2E\u0E44\u0E25\u0E15\u0E4C + 2 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  p3: '\u0E41\u0E19\u0E27\u0E15\u0E31\u0E49\u0E07 2 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  p4: '\u0E41\u0E19\u0E27\u0E15\u0E31\u0E49\u0E07 3 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  p5: '\u0E41\u0E19\u0E27\u0E15\u0E31\u0E49\u0E07 4 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  p6: '\u0E15\u0E32\u0E23\u0E32\u0E07\u0E41\u0E19\u0E27\u0E15\u0E31\u0E49\u0E07 2x2',
-  p7: '\u0E44\u0E2E\u0E44\u0E25\u0E15\u0E4C + 4 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C',
-  p8: '4 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C + \u0E44\u0E2E\u0E44\u0E25\u0E15\u0E4C\u0E01\u0E25\u0E32\u0E07',
-  p9: '\u0E41\u0E19\u0E27\u0E15\u0E31\u0E49\u0E07 4 \u0E04\u0E2D\u0E25\u0E31\u0E21\u0E19\u0E4C \u0E41\u0E1A\u0E1A 2',
-};
-
-const SHAPE_CATEGORY_LABELS_TH: Record<string, string> = {
-  basic: '\u0E23\u0E39\u0E1B\u0E17\u0E23\u0E07\u0E1E\u0E37\u0E49\u0E19\u0E10\u0E32\u0E19',
-  polygons: '\u0E23\u0E39\u0E1B\u0E2B\u0E25\u0E32\u0E22\u0E40\u0E2B\u0E25\u0E35\u0E48\u0E22\u0E21',
-  special: '\u0E23\u0E39\u0E1B\u0E17\u0E23\u0E07\u0E1E\u0E34\u0E40\u0E28\u0E29',
-  arrows: '\u0E25\u0E39\u0E01\u0E28\u0E23',
-  geometric: '\u0E40\u0E23\u0E02\u0E32\u0E04\u0E13\u0E34\u0E15',
-  symbols: '\u0E2A\u0E31\u0E0D\u0E25\u0E31\u0E01\u0E29\u0E13\u0E4C',
-};
-
-const SHAPE_LABELS_TH: Record<string, string> = {
-  square: '\u0E2A\u0E35\u0E48\u0E40\u0E2B\u0E25\u0E35\u0E48\u0E22\u0E21',
-  circle: '\u0E27\u0E07\u0E01\u0E25\u0E21',
-  oval: '\u0E27\u0E07\u0E23\u0E35',
-  change_history: '\u0E2A\u0E32\u0E21\u0E40\u0E2B\u0E25\u0E35\u0E48\u0E22\u0E21',
-  pentagon: '\u0E2B\u0E49\u0E32\u0E40\u0E2B\u0E25\u0E35\u0E48\u0E22\u0E21',
-  star: '\u0E14\u0E32\u0E27',
-  heart: '\u0E2B\u0E31\u0E27\u0E43\u0E08',
-  cross: '\u0E01\u0E32\u0E01\u0E1A\u0E32\u0E17',
-  arrow: '\u0E25\u0E39\u0E01\u0E28\u0E23',
-  arrow_down: '\u0E25\u0E39\u0E01\u0E28\u0E23\u0E25\u0E07',
-  arrow_left: '\u0E25\u0E39\u0E01\u0E28\u0E23\u0E0B\u0E49\u0E32\u0E22',
-  arrow_right: '\u0E25\u0E39\u0E01\u0E28\u0E23\u0E02\u0E27\u0E32',
-  parallelogram: '\u0E2A\u0E35\u0E48\u0E40\u0E2B\u0E25\u0E35\u0E48\u0E22\u0E21\u0E14\u0E49\u0E32\u0E19\u0E02\u0E19\u0E32\u0E19',
-  trapezoid: '\u0E2A\u0E35\u0E48\u0E40\u0E2B\u0E25\u0E35\u0E48\u0E22\u0E21\u0E04\u0E32\u0E07\u0E2B\u0E21\u0E39',
-  inverted_trapezoid: '\u0E2A\u0E35\u0E48\u0E40\u0E2B\u0E25\u0E35\u0E48\u0E22\u0E21\u0E04\u0E32\u0E07\u0E2B\u0E21\u0E39\u0E01\u0E25\u0E31\u0E1A\u0E2B\u0E31\u0E27',
-  plus: '\u0E1A\u0E27\u0E01',
-  minus: '\u0E25\u0E1A',
-  frame: '\u0E01\u0E23\u0E2D\u0E1A',
-  rounded_frame: '\u0E01\u0E23\u0E2D\u0E1A\u0E21\u0E38\u0E21\u0E21\u0E19',
-  check: '\u0E40\u0E0A\u0E47\u0E01',
-  x_mark: '\u0E01\u0E32\u0E01\u0E1A\u0E32\u0E17 X',
-  circle_mark: '\u0E27\u0E07\u0E01\u0E25\u0E21',
-  dot: '\u0E08\u0E38\u0E14',
-};
-
-const getTemplateName = (template: TemplateCard, lang: Lang) =>
-  lang === 'th' ? TEMPLATE_NAME_TH[template.id] ?? template.nameEn : template.nameEn;
-
-const getCategoryLabel = (categoryId: string, fallback: string, lang: Lang) =>
-  lang === 'th' ? SHAPE_CATEGORY_LABELS_TH[categoryId] ?? fallback : fallback;
-
-const getShapeLabel = (shapeName: string, fallback: string, lang: Lang) =>
-  lang === 'th' ? SHAPE_LABELS_TH[shapeName] ?? fallback : fallback;
 
 const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const { language: globalLang } = useLanguage();
   const location = useLocation();
   const locationState = location.state as CanvasLocationState | null;
+
+  const pendingMeetingDraft = React.useMemo<MeetingTemplateDraft | null>(() => {
+    if (locationState?.meetingTemplateDraft) {
+      return locationState.meetingTemplateDraft;
+    }
+
+    try {
+      const rawDraft = localStorage.getItem('meetingTemplateDraft');
+      return rawDraft ? (JSON.parse(rawDraft) as MeetingTemplateDraft) : null;
+    } catch {
+      return null;
+    }
+  }, [locationState]);
 
   const [activeTool, setActiveTool] = useState<Tool | null>(null);
   const [showProperties, setShowProperties] = useState<boolean>(() => {
@@ -164,8 +111,8 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const savedTextColor = localStorage.getItem('textColor');
   const savedStrokeColor = localStorage.getItem('strokeColor');
 
-  const [canvasWidth, setCanvasWidth] = useState<number>(savedCanvasWidth ? parseInt(savedCanvasWidth) : 900);
-  const [canvasHeight, setCanvasHeight] = useState<number>(savedCanvasHeight ? parseInt(savedCanvasHeight) : 506);
+  const [canvasWidth, setCanvasWidth] = useState<number>(pendingMeetingDraft?.canvasWidth ?? (savedCanvasWidth ? parseInt(savedCanvasWidth) : 900));
+  const [canvasHeight, setCanvasHeight] = useState<number>(pendingMeetingDraft?.canvasHeight ?? (savedCanvasHeight ? parseInt(savedCanvasHeight) : 506));
   const [backgroundColor, setBackgroundColor] = useState<string>(savedBackgroundColor || (isDarkMode ? '#1e1e1e' : '#ffffff'));
 
   const [strokeColor, setStrokeColor] = useState<string>(savedStrokeColor || (isDarkMode ? '#f8fafc' : '#0f172a'));
@@ -180,72 +127,77 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const [textColor, setTextColor] = useState<string>(savedTextColor || (isDarkMode ? '#ffffff' : '#0f172a'));
   const [shapeSearch, setShapeSearch] = useState<string>('');
   const [lastAppliedDraftId, setLastAppliedDraftId] = useState<string | null>(null);
-  const [lastExportedFileName, setLastExportedFileName] = useState<string | null>(null);
 
   const shapeCategories = {
     basic: {
       id: 'basic',
       label: 'Basic Shapes',
+      labelTh: 'รูปทรงพื้นฐาน',
       icon: 'category',
       shapes: [
-        { name: 'square', label: 'Square' },
-        { name: 'circle', label: 'Circle' },
-        { name: 'oval', label: 'Oval' },
+        { name: 'square', label: 'Square', labelTh: 'สี่เหลี่ยม' },
+        { name: 'circle', label: 'Circle', labelTh: 'วงกลม' },
+        { name: 'oval', label: 'Oval', labelTh: 'วงรี' },
       ]
     },
     polygons: {
       id: 'polygons',
       label: 'Polygons',
+      labelTh: 'รูปหลายเหลี่ยม',
       icon: 'pentagon',
       shapes: [
-        { name: 'change_history', label: 'Triangle' },
-        { name: 'pentagon', label: 'Pentagon' },
+        { name: 'change_history', label: 'Triangle', labelTh: 'สามเหลี่ยม' },
+        { name: 'pentagon', label: 'Pentagon', labelTh: 'ห้าเหลี่ยม' },
       ]
     },
     special: {
       id: 'special',
       label: 'Special',
+      labelTh: 'รูปทรงพิเศษ',
       icon: 'star',
       shapes: [
-        { name: 'star', label: 'Star' },
-        { name: 'heart', label: 'Heart' },
-        { name: 'cross', label: 'Cross' },
+        { name: 'star', label: 'Star', labelTh: 'ดาว' },
+        { name: 'heart', label: 'Heart', labelTh: 'หัวใจ' },
+        { name: 'cross', label: 'Cross', labelTh: 'กากบาท' },
       ]
     },
     arrows: {
       id: 'arrows',
       label: 'Arrows',
+      labelTh: 'ลูกศร',
       icon: 'arrow_forward',
       shapes: [
-        { name: 'arrow', label: 'Arrow' },
-        { name: 'arrow_down', label: 'Arrow Down' },
-        { name: 'arrow_left', label: 'Arrow Left' },
-        { name: 'arrow_right', label: 'Arrow Right' },
+        { name: 'arrow', label: 'Arrow', labelTh: 'ลูกศร' },
+        { name: 'arrow_down', label: 'Arrow Down', labelTh: 'ลูกศรลง' },
+        { name: 'arrow_left', label: 'Arrow Left', labelTh: 'ลูกศรซ้าย' },
+        { name: 'arrow_right', label: 'Arrow Right', labelTh: 'ลูกศรขวา' },
       ]
     },
     geometric: {
       id: 'geometric',
       label: 'Geometric',
+      labelTh: 'เรขาคณิต',
       icon: 'change_history',
       shapes: [
-        { name: 'parallelogram', label: 'Parallelogram' },
-        { name: 'trapezoid', label: 'Trapezoid' },
-        { name: 'inverted_trapezoid', label: 'Inv. Trapezoid' },
+        { name: 'parallelogram', label: 'Parallelogram', labelTh: 'สี่เหลี่ยมคู่ขนาน' },
+        { name: 'trapezoid', label: 'Trapezoid', labelTh: 'สี่เหลี่ยมด้านไม่เท่า' },
+        { name: 'inverted_trapezoid', label: 'Inv. Trapezoid', labelTh: 'สี่เหลี่ยมกลับ' },
       ]
     },
     symbols: {
       id: 'symbols',
       label: 'Symbols',
+      labelTh: 'สัญลักษณ์',
       icon: 'radio_button_unchecked',
       shapes: [
-        { name: 'plus', label: 'Plus' },
-        { name: 'minus', label: 'Minus' },
-        { name: 'frame', label: 'Frame' },
-        { name: 'rounded_frame', label: 'Rounded Frame' },
-        { name: 'check', label: 'Check' },
-        { name: 'x_mark', label: 'X Mark' },
-        { name: 'circle_mark', label: 'Circle Mark' },
-        { name: 'dot', label: 'Dot' },
+        { name: 'plus', label: 'Plus', labelTh: 'บวก' },
+        { name: 'minus', label: 'Minus', labelTh: 'ลบ' },
+        { name: 'frame', label: 'Frame', labelTh: 'กรอบ' },
+        { name: 'rounded_frame', label: 'Rounded Frame', labelTh: 'กรอบมุมมน' },
+        { name: 'check', label: 'Check', labelTh: 'เช็ค' },
+        { name: 'x_mark', label: 'X Mark', labelTh: 'กากบาท X' },
+        { name: 'circle_mark', label: 'Circle Mark', labelTh: 'วงกลม' },
+        { name: 'dot', label: 'Dot', labelTh: 'จุด' },
       ]
     }
   };
@@ -266,19 +218,6 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const t = useCallback((key: string) => {
     return TRANSLATIONS[key]?.[lang] || key;
   }, [lang]);
-
-  const pendingMeetingDraft = React.useMemo<MeetingTemplateDraft | null>(() => {
-    if (locationState?.meetingTemplateDraft) {
-      return locationState.meetingTemplateDraft;
-    }
-
-    try {
-      const rawDraft = localStorage.getItem(CANVAS_DRAFT_STORAGE_KEY);
-      return rawDraft ? (JSON.parse(rawDraft) as MeetingTemplateDraft) : null;
-    } catch {
-      return null;
-    }
-  }, [locationState]);
 
   // Debounce save
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -398,9 +337,8 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 
     canvasStageRef.current.applyMeetingTemplate(pendingMeetingDraft);
     setLastAppliedDraftId(pendingMeetingDraft.draftId);
-    localStorage.removeItem(CANVAS_DRAFT_STORAGE_KEY);
-    scheduleAutoSave();
-  }, [isLoadingFromBackend, lastAppliedDraftId, pendingMeetingDraft, scheduleAutoSave]);
+    localStorage.removeItem('meetingTemplateDraft');
+  }, [isLoadingFromBackend, lastAppliedDraftId, pendingMeetingDraft]);
 
   // Save on dimension change
   useEffect(() => {
@@ -500,7 +438,6 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     { id: Tool.Images, icon: 'add_photo_alternate', title: 'images_title', desc: 'images_desc' },
     { id: Tool.Templates, icon: 'grid_view', title: 'templates_title', desc: 'templates_desc' },
   ];
-  const activeToolMeta = activeTool ? toolsList.find((tool) => tool.id === activeTool) ?? null : null;
 
   const handleToolToggle = (tool: Tool) => {
     setActiveTool((current) => (current === tool ? null : tool));
@@ -509,28 +446,6 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const handleTemplateApply = (templateId: string) => {
     canvasStageRef.current?.applyTemplate(templateId);
     scheduleAutoSave();
-  };
-
-  const handleExportCanvas = () => {
-    const exportUrl = canvasStageRef.current?.exportAsImage();
-    if (!exportUrl) return;
-
-    const normalizedName = (
-      pendingMeetingDraft?.fileName ||
-      lastExportedFileName ||
-      'meeting-canvas'
-    )
-      .replace(/\.[^/.]+$/, '')
-      .replace(/[^a-z0-9-_]+/gi, '-')
-      .replace(/^-+|-+$/g, '')
-      .toLowerCase();
-    const downloadName = `${normalizedName || 'meeting-canvas'}.png`;
-
-    const link = document.createElement('a');
-    link.href = exportUrl;
-    link.download = downloadName;
-    link.click();
-    setLastExportedFileName(downloadName);
   };
 
   useEffect(() => {
@@ -651,56 +566,46 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 
     const searchLower = shapeSearch.toLowerCase().trim();
 
-    return category.shapes.filter((shape) => {
-      const localizedLabel = getShapeLabel(shape.name, shape.label, lang).toLowerCase();
-      return (
-        shape.label.toLowerCase().includes(searchLower) ||
-        localizedLabel.includes(searchLower) ||
-        shape.name.toLowerCase().includes(searchLower)
-      );
-    });
+    return category.shapes.filter(shape =>
+      shape.label.toLowerCase().includes(searchLower) ||
+      shape.labelTh.includes(shapeSearch) ||
+      shape.name.toLowerCase().includes(searchLower)
+    );
   };
 
   const renderPopupContent = () => {
     if (!activeTool) return null;
     const tool = toolsList.find(t => t.id === activeTool);
     if (!tool) return null;
-    const popupHelper =
-      activeTool === Tool.Shapes
-        ? t('canvas_shapes_helper')
-        : activeTool === Tool.Templates
-          ? t('canvas_templates_helper')
-          : activeTool === Tool.Text
-            ? t('canvas_text_helper')
-            : t(tool.desc);
 
     return (
       <div
         ref={popupRef}
-        className={`fixed z-[100] pointer-events-auto flex w-[356px] max-w-[calc(100vw-32px)] flex-col gap-4 rounded-[30px] border p-5 shadow-[0_24px_60px_rgba(15,23,42,0.16)] animate-fadeIn backdrop-blur-xl ${
-          theme === 'dark' ? 'border-white/10 bg-[#0f172a]/92' : 'border-slate-200/80 bg-white/94'
+        className={`fixed z-[100] pointer-events-auto w-80 backdrop-blur-md border rounded-2xl shadow-2xl p-5 flex flex-col gap-4 animate-fadeIn ${
+          theme === 'dark' ? 'bg-[#252525]/95 border-white/10' : 'bg-white/95 border-gray-200'
         }`}
         style={{ left: `${popupPos.left}px`, top: `${popupPos.top}px` }}
       >
         <div
-          className={`absolute size-4 rotate-45 border-b border-l transition-all duration-300 ${
-            theme === 'dark' ? 'border-white/10 bg-[#0f172a]' : 'border-slate-200 bg-white'
+          className={`absolute size-4 border-l border-b rotate-45 transition-all duration-300 ${
+            theme === 'dark' ? 'bg-[#252525] border-white/10' : 'bg-white border-gray-200'
           }`}
           style={{ top: `${popupPos.arrowTop}px`, left: '-8px' }}
-        />
+        ></div>
 
-        <div className={`flex items-start gap-3 border-b pb-4 ${theme === 'dark' ? 'border-white/10' : 'border-slate-200/80'}`}>
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-[18px] bg-primary text-navy">
+        <div className="flex items-start gap-3 pb-3 border-b border-white/10">
+          <div className="size-10 rounded-xl bg-primary flex items-center justify-center text-navy shrink-0">
             <span className="material-symbols-outlined filled text-[22px]">{tool.icon}</span>
           </div>
-          <div className="min-w-0">
-            <p className={`text-[10px] font-semibold uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-              {t('canvas_toolbar_label')}
-            </p>
-            <h3 className={`mt-1 text-base font-semibold leading-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{t(tool.title)}</h3>
-            <p className={`mt-1 text-sm leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{popupHelper}</p>
+          <div>
+            <h3 className={`font-bold text-base leading-tight ${theme === 'dark' ? 'text-white' : 'text-navy'}`}>{t(tool.title)}</h3>
+            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5">{t('properties')}</p>
           </div>
         </div>
+
+        <p className={`text-sm leading-relaxed ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+          {t(tool.desc)}
+        </p>
 
         {activeTool === Tool.Pencil && (
           <PencilTool
@@ -717,12 +622,8 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 
         {activeTool === Tool.Shapes && (
           <div>
-            <div className={`mb-4 rounded-2xl border px-4 py-3 text-xs leading-6 ${
-              theme === 'dark' ? 'border-white/8 bg-white/[0.03] text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-500'
-            }`}>
-              {t('canvas_shapes_helper')}
-            </div>
-            <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+            {/* Category Tabs */}
+            <div className="flex gap-1.5 mb-3 overflow-x-auto pb-1 -mx-1 px-1">
               {Object.values(shapeCategories).map((category) => (
                 <button
                   key={category.id}
@@ -731,76 +632,73 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
                     setSelectedCategory(category.id);
                     setShapeSearch('');
                   }}
-                  className={`flex items-center gap-1.5 whitespace-nowrap rounded-xl border px-3 py-2 text-xs font-medium transition-all ${
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-medium whitespace-nowrap transition-all ${
                     selectedCategory === category.id
-                      ? 'border-primary/40 bg-primary/14 text-primary'
+                      ? 'bg-primary text-navy border-primary shadow-sm'
                       : theme === 'dark'
-                        ? 'border-white/10 bg-transparent text-slate-400 hover:border-white/20 hover:bg-white/[0.04] hover:text-slate-200'
-                        : 'border-slate-200 bg-transparent text-slate-600 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-700'
+                        ? 'bg-transparent border-white/10 text-gray-400 hover:bg-white/5 hover:border-white/20 hover:text-gray-300'
+                        : 'bg-transparent border-gray-200 text-gray-600 hover:bg-gray-100 hover:border-gray-300 hover:text-gray-700'
                   }`}
                 >
                   <span className="material-symbols-outlined text-[16px]">{category.icon}</span>
-                  <span>{getCategoryLabel(category.id, category.label, lang)}</span>
+                  <span>{lang === 'th' ? category.labelTh : category.label}</span>
                 </button>
               ))}
             </div>
 
             {/* Search */}
-            <div className="relative mb-4">
-              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400">
+            <div className="relative mb-3">
+              <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">
                 search
               </span>
               <input
                 type="text"
                 value={shapeSearch}
                 onChange={(e) => setShapeSearch(e.target.value)}
-                placeholder={`${lang === 'th' ? '\u0E04\u0E49\u0E19\u0E2B\u0E32' : 'Search'} ${getCategoryLabel(
-                  shapeCategories[selectedCategory as keyof typeof shapeCategories].id,
-                  shapeCategories[selectedCategory as keyof typeof shapeCategories].label,
-                  lang,
-                )}...`}
-                className={`w-full rounded-2xl border py-3 pl-10 pr-10 text-sm transition-all ${
+                placeholder={`${lang === 'th' ? 'ค้นหา' : 'Search'} ${lang === 'th' ? shapeCategories[selectedCategory as keyof typeof shapeCategories].labelTh : shapeCategories[selectedCategory as keyof typeof shapeCategories].label}...`}
+                className={`w-full pl-10 pr-10 py-2.5 rounded-lg border text-sm transition-all ${
                   theme === 'dark'
-                    ? 'border-white/10 bg-white/[0.03] text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary/30'
-                    : 'border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/25'
+                    ? 'bg-white/5 border-white/10 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50'
+                    : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50'
                 }`}
               />
               {shapeSearch && (
                 <button
                   type="button"
                   onClick={() => setShapeSearch('')}
-                  className="absolute right-3 top-1/2 rounded-full p-1 transition-colors -translate-y-1/2 hover:bg-slate-200/60 dark:hover:bg-white/8"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-gray-200/50 dark:hover:bg-gray-700/50 transition-colors"
                 >
-                  <span className="material-symbols-outlined text-[18px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                  <span className="material-symbols-outlined text-[18px] text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                     close
                   </span>
                 </button>
               )}
             </div>
 
-            <div className="grid max-h-[320px] grid-cols-6 gap-2 overflow-y-auto pr-1 pt-1">
+            {/* Shapes Grid */}
+            <div className="grid grid-cols-6 gap-2 pt-1 max-h-[320px] overflow-y-auto pr-1">
               {filteredShapes().map((shape, i) => (
                 <button
                   key={i}
                   draggable
                   onDragStart={(event) => handleDragStart(event, { type: 'shape', shape: shape.name })}
                   onClick={() => handleShapePick({ type: 'shape', shape: shape.name })}
-                  title={getShapeLabel(shape.name, shape.label, lang)}
-                  className={`group aspect-square overflow-hidden rounded-2xl border transition-all ${
+                  title={lang === 'th' ? shape.labelTh : shape.label}
+                  className={`aspect-square flex items-center justify-center rounded-xl border-2 transition-all overflow-hidden group ${
                     theme === 'dark'
-                      ? 'border-white/10 bg-white/[0.03] hover:border-primary/30 hover:bg-white/[0.08]'
-                      : 'border-slate-200 bg-slate-50 hover:border-primary/30 hover:bg-white hover:shadow-[0_10px_24px_rgba(15,23,42,0.08)]'
+                      ? 'bg-white/5 border-white/10 hover:border-primary/50 hover:bg-white/10'
+                      : 'bg-gray-50 border-gray-200 hover:border-primary/50 hover:bg-white'
                   } cursor-grab active:cursor-grabbing`}
                 >
-                  <div className="relative flex size-10 items-center justify-center transition-transform group-hover:scale-110">
+                  <div className="relative size-10 flex items-center justify-center transition-transform group-hover:scale-110">
                     <ShapeIcon shape={shape.name} theme={theme} />
                   </div>
                 </button>
               ))}
               {filteredShapes().length === 0 && (
-                <div className={`col-span-6 flex flex-col items-center justify-center py-8 text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                <div className={`col-span-6 flex flex-col items-center justify-center py-8 text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                   <span className="material-symbols-outlined text-4xl mb-2">search_off</span>
-                  <span>{t('no_shapes_found')}</span>
+                  <span>{lang === 'th' ? 'ไม่พบรูปทรง' : 'No shapes found'}</span>
                 </div>
               )}
             </div>
@@ -817,21 +715,16 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 
         {activeTool === Tool.Templates && (
           <div className="pt-1 max-h-[420px] overflow-y-auto pr-1">
-            <div className={`mb-4 rounded-2xl border px-4 py-3 text-xs leading-6 ${
-              theme === 'dark' ? 'border-white/8 bg-white/[0.03] text-slate-400' : 'border-slate-200 bg-slate-50 text-slate-500'
-            }`}>
-              {t('canvas_templates_helper')}
-            </div>
             <div className="grid grid-cols-2 gap-3">
               {TEMPLATE_CARDS.map((template) => (
                 <button
                   key={template.id}
                   type="button"
                   onClick={() => handleTemplateApply(template.id)}
-                  className={`group rounded-[22px] border p-3 text-left transition-all ${
+                  className={`rounded-xl border p-2 text-left transition-all group ${
                     theme === 'dark'
-                      ? 'border-white/10 bg-white/[0.03] hover:border-primary/30 hover:bg-white/[0.07]'
-                      : 'border-slate-200 bg-slate-50 hover:border-primary/30 hover:bg-white hover:shadow-[0_12px_24px_rgba(15,23,42,0.08)]'
+                      ? 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-primary/40'
+                      : 'bg-gray-50 border-gray-200 hover:bg-white hover:border-primary/40'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
@@ -842,15 +735,11 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
                     }`}>
                       {template.code}
                     </span>
-                    <span className="text-[10px] text-slate-400">
-                      {template.orientation === 'L'
-                        ? (lang === 'th' ? '\u0E41\u0E19\u0E27\u0E19\u0E2D\u0E19' : 'Landscape')
-                        : (lang === 'th' ? '\u0E41\u0E19\u0E27\u0E15\u0E31\u0E49\u0E07' : 'Portrait')}
-                    </span>
+                    <span className="text-[10px] text-gray-400">{template.orientation === 'L' ? (lang === 'th' ? 'แนวนอน' : 'Landscape') : (lang === 'th' ? 'แนวตั้ง' : 'Portrait')}</span>
                   </div>
 
-                  <div className={`relative h-24 overflow-hidden rounded-[16px] border ${
-                    theme === 'dark' ? 'border-white/10 bg-black/30' : 'border-slate-200 bg-white'
+                  <div className={`relative h-24 rounded-lg overflow-hidden border ${
+                    theme === 'dark' ? 'bg-black/30 border-white/10' : 'bg-white border-gray-200'
                   }`}>
                     {template.preview.map((block, index) => (
                       <div
@@ -872,10 +761,10 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
                     ))}
                   </div>
 
-                  <p className={`mt-3 min-h-8 text-[12px] font-medium leading-5 ${
-                    theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
+                  <p className={`mt-2 min-h-8 text-[11px] leading-4 font-medium ${
+                    theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
                   }`}>
-                    {getTemplateName(template, lang)}
+                    {lang === 'th' ? template.nameTh : template.nameEn}
                   </p>
                 </button>
               ))}
@@ -887,114 +776,65 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   };
 
   return (
-    <div className={`relative flex h-screen flex-col overflow-hidden transition-colors duration-300 ${
-      theme === 'dark' ? 'bg-[#080d16] text-slate-200' : 'bg-[#f3f5f9] text-navy'
+    <div className={`h-screen flex flex-col overflow-hidden transition-colors duration-300 relative ${
+      theme === 'dark' ? 'bg-[#121212] text-gray-200' : 'bg-gray-50 text-navy'
     }`}>
-      <div className={`pointer-events-none absolute inset-0 -z-10 ${
-        theme === 'dark'
-          ? 'bg-[radial-gradient(circle_at_top,#1e293b_0%,#080d16_52%)]'
-          : 'bg-[radial-gradient(circle_at_top,#ffffff_0%,#eef2f7_58%)]'
-      }`} />
-      <div className={`fixed inset-0 pointer-events-none -z-10 dot-grid ${theme === 'dark' ? 'text-white/[0.04]' : 'text-slate-300/80'}`} />
+      <div className={`fixed inset-0 pointer-events-none -z-10 dot-grid ${
+        theme === 'dark' ? 'text-white/5' : 'text-gray-300'
+      }`}></div>
 
       <Header isDarkMode={isDarkMode} toggleTheme={toggleTheme} />
 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar isDarkMode={isDarkMode} />
-        <div className="relative flex flex-1 overflow-hidden px-5 pb-5 pt-4">
-          <div className={`absolute inset-x-5 top-4 hidden rounded-[30px] border px-6 py-4 backdrop-blur-xl xl:flex xl:items-center xl:justify-between ${
-            theme === 'dark' ? 'border-white/10 bg-white/[0.03]' : 'border-white/80 bg-white/70'
-          }`}>
-            <div className="min-w-0">
-              <p className={`text-[10px] font-semibold uppercase tracking-[0.24em] ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
-                {t('canvas_workspace_label')}
-              </p>
-              <div className="mt-2 flex items-center gap-3">
-                <h1 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{t('canvas_title')}</h1>
-                <span className={`hidden text-sm lg:block ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                  {activeToolMeta ? t(activeToolMeta.desc) : t('canvas_desc')}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {pendingMeetingDraft && (
-                <div className={`max-w-[240px] truncate rounded-full px-3 py-2 text-xs font-medium ${
-                  theme === 'dark' ? 'bg-primary/12 text-primary' : 'bg-primary/10 text-primary'
-                }`}>
-                  {pendingMeetingDraft.title}
-                </div>
-              )}
-              <div className={`rounded-full px-3 py-2 text-xs font-medium ${
-                theme === 'dark' ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-100 text-slate-600'
-              }`}>
-                {t('canvas_status_saved')}
-              </div>
-              <div className={`rounded-full px-3 py-2 text-xs font-medium ${
-                theme === 'dark' ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-100 text-slate-600'
-              }`}>
-                {hasSelection ? t('canvas_selection_desc') : t('canvas_status_focus')}
-              </div>
-              <button
-                type="button"
-                onClick={handleExportCanvas}
-                className="rounded-full bg-primary px-4 py-2 text-xs font-semibold text-navy transition-colors hover:bg-primary-hover"
-              >
-                {t('export')}
-              </button>
-            </div>
-          </div>
+        <div className="flex flex-1 overflow-hidden relative px-4 pb-4 pt-4 gap-6">
+          <ToolSidebar
+            theme={theme}
+            t={t}
+            tools={toolsList}
+            activeTool={activeTool}
+            onToolToggle={handleToolToggle}
+            toolRefs={toolRefs}
+            sidebarRef={sidebarRef}
+          />
 
-          <div className="flex min-w-0 flex-1 gap-5 pt-0 xl:pt-[92px]">
-            <ToolSidebar
-              theme={theme}
-              t={t}
-              tools={toolsList}
-              activeTool={activeTool}
-              onToolToggle={handleToolToggle}
-              toolRefs={toolRefs}
-              sidebarRef={sidebarRef}
-            />
+          {renderPopupContent()}
 
-            {renderPopupContent()}
+          <CanvasStage
+            ref={canvasStageRef}
+            theme={theme}
+            t={t}
+            activeTool={activeTool}
+            pencilColor={pencilColor}
+            pencilStroke={pencilStroke}
+            showProperties={showProperties}
+            onToggleProperties={() => setShowProperties(!showProperties)}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
+            backgroundColor={backgroundColor}
+            onSelectionChange={handleSelectionChange}
+          />
 
-            <CanvasStage
-              ref={canvasStageRef}
-              theme={theme}
-              t={t}
-              activeTool={activeTool}
-              pencilColor={pencilColor}
-              pencilStroke={pencilStroke}
-              showProperties={showProperties}
-              onToggleProperties={() => setShowProperties(!showProperties)}
-              canvasWidth={canvasWidth}
-              canvasHeight={canvasHeight}
-              backgroundColor={backgroundColor}
-              isLoading={isLoadingFromBackend}
-              onExport={handleExportCanvas}
-              onSelectionChange={handleSelectionChange}
-            />
-
-            <PropertiesPanel
-              theme={theme}
-              t={t}
-              isOpen={showProperties}
-              onClose={() => setShowProperties(false)}
-              canvasWidth={canvasWidth}
-              canvasHeight={canvasHeight}
-              onDimensionChange={handleDimensionChange}
-              backgroundColor={backgroundColor}
-              onBackgroundColorChange={handleBackgroundColorChange}
-              strokeColor={strokeColor}
-              strokeWidth={strokeWidth}
-              hasSelection={hasSelection}
-              onStrokeChange={handleStrokeChange}
-              onShapeFillChange={handleShapeFillChange}
-              canvasRef={canvasStageRef}
-              selectionFontData={selectionFontData}
-              textColor={textColor}
-              onTextColorChange={handleTextColorChange}
-            />
-          </div>
+          <PropertiesPanel
+            theme={theme}
+            t={t}
+            isOpen={showProperties}
+            onClose={() => setShowProperties(false)}
+            canvasWidth={canvasWidth}
+            canvasHeight={canvasHeight}
+            onDimensionChange={handleDimensionChange}
+            backgroundColor={backgroundColor}
+            onBackgroundColorChange={handleBackgroundColorChange}
+            strokeColor={strokeColor}
+            strokeWidth={strokeWidth}
+            hasSelection={hasSelection}
+            onStrokeChange={handleStrokeChange}
+            onShapeFillChange={handleShapeFillChange}
+            canvasRef={canvasStageRef}
+            selectionFontData={selectionFontData}
+            textColor={textColor}
+            onTextColorChange={handleTextColorChange}
+          />
         </div>
       </div>
     </div>
@@ -1002,4 +842,3 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 };
 
 export default Canvas;
-

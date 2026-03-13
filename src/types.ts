@@ -28,6 +28,8 @@ export interface MeetingTemplateDraft {
   summaryText: string;
   sections: string[];
   keywords: string[];
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 export enum Tool {

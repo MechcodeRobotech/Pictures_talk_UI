@@ -36,6 +36,29 @@ export interface CanvasDocumentUpdate {
   canvas_data?: Record<string, any>;
 }
 
+export interface MeetingTemplateDraftPayload {
+  draftId: string;
+  sourceId?: string;
+  fileName: string;
+  title: string;
+  subtitle: string;
+  dateLabel: string;
+  templateId: string;
+  summaryText: string;
+  sections: string[];
+  keywords: string[];
+  canvasWidth?: number;
+  canvasHeight?: number;
+}
+
+export interface CreateMeetingTemplateDraftRequest {
+  template_id?: string;
+  theme?: string;
+  language?: string;
+  canvas_width?: number;
+  canvas_height?: number;
+}
+
 /**
  * Get user email from Clerk or localStorage
  */
@@ -213,4 +236,25 @@ export async function getUntitledProjectId(): Promise<number> {
   }
 
   return untitledProject.id;
+}
+
+export async function createMeetingTemplateDraft(
+  meetingId: number,
+  data: CreateMeetingTemplateDraftRequest
+): Promise<MeetingTemplateDraftPayload> {
+  const url = new URL(`/api/meetings/${meetingId}/template-draft`, API_BASE_URL);
+  const response = await fetch(url.toString(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to create meeting template draft: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result.draft as MeetingTemplateDraftPayload;
 }

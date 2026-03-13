@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 import Keywords, { fallbackKeywords, keywordPalette, KeywordItem } from '../components/Summary/Keywords';
 import { MeetingTemplateDraft } from '../types';
+import { createMeetingTemplateDraft } from '../lib/canvasApi';
 
 const SUMMARY_SECTION_MAX_CARDS = 3;
 const SUMMARY_TITLE_WORD_LIMIT = 6;
@@ -37,6 +38,12 @@ const DEFAULT_SUMMARY_TEXT = [
 ].join('\n\n');
 
 const CANVAS_DRAFT_STORAGE_KEY = 'meetingTemplateDraft';
+const CANVAS_SIZE_PRESETS = [
+  { id: 'presentation', label: 'Presentation', size: '960 x 540', width: 960, height: 540 },
+  { id: 'classic', label: 'Classic', size: '800 x 600', width: 800, height: 600 },
+  { id: 'square', label: 'Square', size: '600 x 600', width: 600, height: 600 },
+  { id: 'story', label: 'Story', size: '540 x 960', width: 540, height: 960 },
+] as const;
 
 type SummaryLocationState = {
   fileName?: string;
@@ -111,6 +118,12 @@ const Summary: React.FC = () => {
   const [keywordsError, setKeywordsError] = React.useState<string | null>(null);
   const [summaryRatio, setSummaryRatio] = React.useState<SummaryRatioValue>('100');
   const [isSummaryRatioOpen, setIsSummaryRatioOpen] = React.useState(false);
+  const [isCanvasSizeDialogOpen, setIsCanvasSizeDialogOpen] = React.useState(false);
+  const [isCreatingCanvasTemplate, setIsCreatingCanvasTemplate] = React.useState(false);
+  const [canvasTemplateError, setCanvasTemplateError] = React.useState<string | null>(null);
+  const [selectedCanvasSizeId, setSelectedCanvasSizeId] = React.useState<(typeof CANVAS_SIZE_PRESETS)[number]['id'] | 'custom'>('presentation');
+  const [customCanvasWidth, setCustomCanvasWidth] = React.useState('900');
+  const [customCanvasHeight, setCustomCanvasHeight] = React.useState('506');
   const summaryTextAreaRef = React.useRef<HTMLTextAreaElement | null>(null);
   const summaryRatioRef = React.useRef<HTMLDivElement | null>(null);
   const hasUserEditedRef = React.useRef(false);
@@ -482,18 +495,65 @@ const Summary: React.FC = () => {
       summaryText: cleanSummaryText,
       sections,
       keywords: keywordsForDraft,
+      canvasWidth: 960,
+      canvasHeight: 540,
     };
   }, [displayKeywords, fileName, formattedDisplayText, resultId, summaryRatio, uploadDateLabel]);
 
   const handleCreateCanvasTemplate = React.useCallback(() => {
     if (!canvasDraft) return;
-    localStorage.setItem(CANVAS_DRAFT_STORAGE_KEY, JSON.stringify(canvasDraft));
-    navigate('/canvas', {
-      state: {
-        meetingTemplateDraft: canvasDraft,
-      },
-    });
-  }, [canvasDraft, navigate]);
+    setCanvasTemplateError(null);
+    setIsCanvasSizeDialogOpen(true);
+  }, [canvasDraft]);
+
+  const handleConfirmCanvasTemplate = React.useCallback(() => {
+    if (!canvasDraft) return;
+
+    const preset = CANVAS_SIZE_PRESETS.find((item) => item.id === selectedCanvasSizeId);
+    const customWidth = Number.parseInt(customCanvasWidth, 10);
+    const customHeight = Number.parseInt(customCanvasHeight, 10);
+    const width = preset?.width ?? customWidth;
+    const height = preset?.height ?? customHeight;
+
+    if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+      return;
+    }
+
+    const run = async () => {
+      setIsCreatingCanvasTemplate(true);
+      setCanvasTemplateError(null);
+      try {
+        let nextDraft: MeetingTemplateDraft = {
+          ...canvasDraft,
+          canvasWidth: width,
+          canvasHeight: height,
+        };
+
+        if (meetingId) {
+          const generatedDraft = await createMeetingTemplateDraft(meetingId, {
+            language: 'th',
+            canvas_width: width,
+            canvas_height: height,
+          });
+          nextDraft = generatedDraft;
+        }
+
+        localStorage.setItem(CANVAS_DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
+        navigate('/canvas', {
+          state: {
+            meetingTemplateDraft: nextDraft,
+          },
+        });
+        setIsCanvasSizeDialogOpen(false);
+      } catch (error) {
+        setCanvasTemplateError(error instanceof Error ? error.message : 'Failed to create canvas template.');
+      } finally {
+        setIsCreatingCanvasTemplate(false);
+      }
+    };
+
+    void run();
+  }, [canvasDraft, customCanvasHeight, customCanvasWidth, meetingId, navigate, selectedCanvasSizeId]);
 
   return (
     <div className="max-w-[1400px] mx-auto animate-fadeIn">
@@ -683,6 +743,127 @@ const Summary: React.FC = () => {
           )}
         </div>
       </section>
+
+      {isCanvasSizeDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-gray-700 dark:bg-surface-dark">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
+                  Canvas Size
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-secondary dark:text-white">
+                  Choose canvas size before creating template
+                </h3>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  Select a preset size or enter your own custom width and height.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCanvasSizeDialogOpen(false)}
+                className="rounded-full border border-gray-200 p-2 text-slate-400 transition-colors hover:bg-gray-50 hover:text-slate-600 dark:border-gray-600 dark:hover:bg-gray-700 dark:hover:text-slate-200"
+              >
+                <span className="material-icons-round text-base">close</span>
+              </button>
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {CANVAS_SIZE_PRESETS.map((preset) => {
+                const isActive = selectedCanvasSizeId === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => setSelectedCanvasSizeId(preset.id)}
+                    className={`rounded-2xl border p-4 text-left transition-all ${
+                      isActive
+                        ? 'border-primary bg-primary/10 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-gray-600 dark:hover:bg-gray-800/70'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-base font-semibold text-secondary dark:text-white">{preset.label}</p>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{preset.size}</p>
+                      </div>
+                      {isActive && <span className="material-icons-round text-primary">check_circle</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 rounded-2xl border border-gray-200 p-4 dark:border-gray-700">
+              <label className="flex items-center gap-3 text-sm font-medium text-secondary dark:text-gray-200">
+                <input
+                  type="radio"
+                  name="canvas-size-mode"
+                  checked={selectedCanvasSizeId === 'custom'}
+                  onChange={() => setSelectedCanvasSizeId('custom')}
+                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                />
+                Custom size
+              </label>
+
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                    Width
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={customCanvasWidth}
+                    onChange={(event) => {
+                      setSelectedCanvasSizeId('custom');
+                      setCustomCanvasWidth(event.target.value);
+                    }}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-secondary outline-none transition-colors focus:border-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 dark:text-slate-500">
+                    Height
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={customCanvasHeight}
+                    onChange={(event) => {
+                      setSelectedCanvasSizeId('custom');
+                      setCustomCanvasHeight(event.target.value);
+                    }}
+                    className="w-full rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-secondary outline-none transition-colors focus:border-primary dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              {canvasTemplateError && (
+                <p className="mr-auto text-sm text-red-500">{canvasTemplateError}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsCanvasSizeDialogOpen(false)}
+                disabled={isCreatingCanvasTemplate}
+                className="rounded-xl border border-gray-300 px-5 py-2.5 font-medium text-secondary transition-colors hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmCanvasTemplate}
+                disabled={isCreatingCanvasTemplate}
+                className="rounded-xl bg-primary px-6 py-2.5 font-bold text-secondary transition-colors hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isCreatingCanvasTemplate ? 'Analyzing...' : 'Create Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
