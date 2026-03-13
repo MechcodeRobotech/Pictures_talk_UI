@@ -33,11 +33,11 @@ const HeaderBar = styled.header`
   }
 
   &.dark {
-    background: linear-gradient(180deg, rgba(8, 17, 27, 0.9) 0%, rgba(8, 17, 27, 0.72) 100%);
+    background: #262626;
   }
 
   &.light {
-    background: linear-gradient(180deg, rgba(244, 240, 232, 0.92) 0%, rgba(244, 240, 232, 0.7) 100%);
+    background: #f1f1f1;
   }
 
   .logo-wrapper {
