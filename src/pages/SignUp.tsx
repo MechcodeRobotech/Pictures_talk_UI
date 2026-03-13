@@ -10,32 +10,38 @@ import {
   SignUpSocial,
 } from '../components/SignUp';
 import Header from '../components/Common/Header';
+import { useLanguage } from '../LanguageContext';
 
 interface SignUpProps {
   isDarkMode?: boolean;
   toggleTheme?: () => void;
 }
 
-const SignUp: React.FC<SignUpProps> = ({ isDarkMode, toggleTheme }) => (
-  <Page>
-    <Header isDarkMode={!!isDarkMode} toggleTheme={toggleTheme ?? (() => {})} />
+const SignUp: React.FC<SignUpProps> = ({ isDarkMode, toggleTheme }) => {
+  const { t } = useLanguage();
 
-    <Content>
-      <Main>
-        <Card>
-          <CardHeader>
-            <h1>Create your account</h1>
-            <p>Enter your details to start generating AI summaries from your pictures.</p>
-          </CardHeader>
+  return (
+    <Page>
+      <Header isDarkMode={!!isDarkMode} toggleTheme={toggleTheme ?? (() => {})} />
 
-          <SignUpForm />
-          <SignUpSocial />
-        </Card>
-      </Main>
+      <Content>
+        <Main>
+          <Card>
+            <CardHeader>
+              <span className="app-kicker">{t('signup_title')}</span>
+              <h1>{t('signup_title')}</h1>
+              <p>{t('signup_desc')}</p>
+            </CardHeader>
 
-      <SignUpFooter />
-    </Content>
-  </Page>
-);
+            <SignUpForm />
+            <SignUpSocial />
+          </Card>
+        </Main>
+
+        <SignUpFooter />
+      </Content>
+    </Page>
+  );
+};
 
 export default SignUp;

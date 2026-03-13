@@ -34,6 +34,8 @@ const ClerkAuth: React.FC<ClerkAuthProps> = ({ t }) => {
   const isAuthReady = isLoaded && isAuthLoaded && !!signIn;
   const isBlockedBySession = isAuthLoaded && isSignedIn;
   const isBusy = isSubmitting || isOAuthSubmitting;
+  const oauthRedirectUrl = `${window.location.origin}/#/sso-callback`;
+  const oauthRedirectUrlComplete = `${window.location.origin}/#/home`;
 
   useEffect(() => {
     if (isSignedIn) {
@@ -47,25 +49,24 @@ const ClerkAuth: React.FC<ClerkAuthProps> = ({ t }) => {
       navigate('/home');
       return;
     }
+
     setAuthError(null);
     setIsOAuthSubmitting(true);
+
     try {
       await signIn.authenticateWithRedirect({
         strategy,
-        redirectUrl: '/sso-callback',
-        redirectUrlComplete: '/home',
+        redirectUrl: oauthRedirectUrl,
+        redirectUrlComplete: oauthRedirectUrlComplete,
       });
     } catch (error: unknown) {
-      const { message } = getClerkError(
-        error,
-        'Unable to start OAuth sign-in. Please try again.'
-      );
+      const { code, message } = getClerkError(error, 'Unable to start OAuth sign-in. Please try again.');
       if (message.toLowerCase().includes('session already exists')) {
-        setIsOAuthSubmitting(false);
         navigate('/home');
         return;
       }
-      setAuthError(message);
+      setAuthError(code ? `${message} (${code})` : message);
+    } finally {
       setIsOAuthSubmitting(false);
     }
   };
@@ -80,13 +81,16 @@ const ClerkAuth: React.FC<ClerkAuthProps> = ({ t }) => {
           navigate('/home');
           return;
         }
+
         setAuthError(null);
         setIsSubmitting(true);
+
         try {
           const result = await signIn.create({
             identifier: email,
             password,
           });
+
           if (result.status === 'complete') {
             if (setActive) {
               await setActive({ session: result.createdSessionId });
@@ -108,11 +112,11 @@ const ClerkAuth: React.FC<ClerkAuthProps> = ({ t }) => {
       }}
     >
       <div className="space-y-2">
-        <label className="block text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 ml-1">{t('email')}</label>
-        <div className="relative group">
-          <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">email</span>
+        <label className="ml-1 block text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('email')}</label>
+        <div className="group relative">
+          <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-primary">email</span>
           <input
-            className="w-full pl-11 pr-4 py-4 rounded-2xl border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-black/20 text-secondary dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none"
+            className="w-full rounded-2xl border border-slate-200/80 bg-white/80 py-4 pl-11 pr-4 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:ring-4 focus:ring-primary/15 dark:border-white/10 dark:bg-white/5 dark:text-white"
             placeholder="name@company.com"
             type="email"
             required
@@ -123,16 +127,16 @@ const ClerkAuth: React.FC<ClerkAuthProps> = ({ t }) => {
       </div>
 
       <div className="space-y-2">
-        <div className="flex justify-between items-center ml-1">
+        <div className="ml-1 flex items-center justify-between">
           <label className="block text-xs font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t('password')}</label>
           <Link to="/forgot-pass" className="text-xs font-bold text-primary hover:underline">
             {t('forgot_pass')}
           </Link>
         </div>
-        <div className="relative group">
-          <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-primary transition-colors">lock</span>
+        <div className="group relative">
+          <span className="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 transition-colors group-focus-within:text-primary">lock</span>
           <input
-            className="w-full pl-11 pr-4 py-4 rounded-2xl border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-black/20 text-secondary dark:text-white placeholder-slate-400 focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all outline-none"
+            className="w-full rounded-2xl border border-slate-200/80 bg-white/80 py-4 pl-11 pr-4 text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] outline-none transition-all placeholder:text-slate-400 focus:border-primary focus:ring-4 focus:ring-primary/15 dark:border-white/10 dark:bg-white/5 dark:text-white"
             placeholder="••••••••"
             type="password"
             required
@@ -144,51 +148,50 @@ const ClerkAuth: React.FC<ClerkAuthProps> = ({ t }) => {
 
       <button
         type="submit"
-        className="w-full bg-secondary dark:bg-primary text-white dark:text-secondary font-black text-lg py-4 rounded-2xl shadow-xl shadow-secondary/10 dark:shadow-primary/20 transition-all transform active:scale-[0.98] hover:opacity-95 disabled:opacity-60"
+        className="w-full rounded-2xl bg-slate-950 py-4 text-lg font-black text-white shadow-[0_20px_36px_rgba(15,23,42,0.18)] transition-all active:scale-[0.98] hover:-translate-y-0.5 hover:bg-slate-900 disabled:opacity-60 dark:bg-primary dark:text-slate-950 dark:shadow-[0_20px_36px_rgba(248,175,36,0.18)]"
         disabled={!isAuthReady || isBusy || isBlockedBySession}
       >
         {isSubmitting ? `${t('login_btn')}...` : t('login_btn')}
       </button>
-      {authError && (
-        <p className="text-sm font-semibold text-red-500 text-center">{authError}</p>
-      )}
+
+      {authError && <p className="text-center text-sm font-semibold text-red-500">{authError}</p>}
 
       <div className="relative my-10">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-100 dark:border-white/5"></div>
+          <div className="w-full border-t border-slate-200 dark:border-white/10" />
         </div>
-        <div className="relative flex justify-center text-[10px] uppercase tracking-[0.2em] font-black">
-          <span className="px-4 bg-white dark:bg-surface-dark text-slate-300">{t('or_continue')}</span>
+        <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.2em]">
+          <span className="bg-transparent px-4 text-slate-300 dark:text-slate-500">{t('or_continue')}</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <button
-          className="flex items-center justify-center gap-3 py-3.5 border border-slate-200 dark:border-white/10 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-sm font-bold text-secondary dark:text-white disabled:opacity-60"
+          className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white/70 py-3.5 text-sm font-bold text-slate-900 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/8"
           onClick={() => handleOAuth('oauth_google')}
           type="button"
           disabled={!isAuthReady || isBusy || isBlockedBySession}
         >
-          <img className="w-5 h-5" src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" />
-          {isOAuthSubmitting ? 'Redirecting...' : 'Google'}
+          <img className="h-5 w-5" src="https://www.gstatic.com/images/branding/product/1x/gsa_512dp.png" alt="Google" />
+          {isOAuthSubmitting ? t('redirecting') : 'Google'}
         </button>
         <button
-          className="flex items-center justify-center gap-3 py-3.5 border border-slate-200 dark:border-white/10 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-sm font-bold text-secondary dark:text-white disabled:opacity-60"
+          className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white/70 py-3.5 text-sm font-bold text-slate-900 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/8"
           onClick={() => handleOAuth('oauth_facebook')}
           type="button"
           disabled={!isAuthReady || isBusy || isBlockedBySession}
         >
-          <img className="w-5 h-5" src="https://www.facebook.com/images/fb_icon_325x325.png" alt="Facebook" />
-          {isOAuthSubmitting ? 'Redirecting...' : 'Facebook'}
+          <img className="h-5 w-5" src="https://www.facebook.com/images/fb_icon_325x325.png" alt="Facebook" />
+          {isOAuthSubmitting ? t('redirecting') : 'Facebook'}
         </button>
         <button
-          className="flex items-center justify-center gap-3 py-3.5 border border-slate-200 dark:border-white/10 rounded-2xl hover:bg-slate-50 dark:hover:bg-white/5 transition-all text-sm font-bold text-secondary dark:text-white disabled:opacity-60"
+          className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200/80 bg-white/70 py-3.5 text-sm font-bold text-slate-900 transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/8"
           onClick={() => handleOAuth('oauth_line')}
           type="button"
           disabled={!isAuthReady || isBusy || isBlockedBySession}
         >
-          <img className="w-5 h-5" src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" alt="LINE" />
-          {isOAuthSubmitting ? 'Redirecting...' : 'LINE'}
+          <img className="h-5 w-5" src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" alt="LINE" />
+          {isOAuthSubmitting ? t('redirecting') : 'LINE'}
         </button>
       </div>
     </form>

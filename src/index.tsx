@@ -3,8 +3,13 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ClerkProvider } from '@clerk/clerk-react';
 import App from './App';
+import './styles/global.css';
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+<<<<<<< HEAD
+=======
+
+>>>>>>> 7d100022a7a4e4f0d8b7e944a854eb33e8c165a8
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
@@ -12,12 +17,35 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+<<<<<<< HEAD
 
 if (!publishableKey) {
   root.render(
     <React.StrictMode>
       <div style={{ padding: '24px', fontFamily: 'system-ui, sans-serif' }}>
         Missing `VITE_CLERK_PUBLISHABLE_KEY`. Set it in Vercel Environment Variables and redeploy.
+=======
+if (!publishableKey) {
+  // Render a visible setup error instead of a blank page.
+  root.render(
+    <React.StrictMode>
+      <div
+        style={{
+          fontFamily: 'Inter, Prompt, sans-serif',
+          padding: '48px 24px',
+          maxWidth: 720,
+          margin: '0 auto',
+          color: '#111111',
+        }}
+      >
+        <h1 style={{ fontSize: 24, marginBottom: 12 }}>Missing Clerk publishable key</h1>
+        <p style={{ marginBottom: 12 }}>
+          Add <code>VITE_CLERK_PUBLISHABLE_KEY</code> to a root <code>.env.local</code> file and restart the dev server.
+        </p>
+        <p style={{ marginBottom: 0 }}>
+          Example: <code>VITE_CLERK_PUBLISHABLE_KEY=pk_test_...</code>
+        </p>
+>>>>>>> 7d100022a7a4e4f0d8b7e944a854eb33e8c165a8
       </div>
     </React.StrictMode>
   );

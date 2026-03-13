@@ -1,7 +1,7 @@
 import React, { useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import * as fabric from 'fabric';
 import { DELETE_ICON_SVG } from '../Common/Add';
-import { Theme, Tool } from '../../types';
+import { MeetingTemplateDraft, Theme, Tool } from '../../types';
 
 type DragPayload =
   | {
@@ -30,6 +30,8 @@ export type CanvasStageHandle = {
   addImageAtCenter: (payload: DragPayload & { type: 'image' }) => void;
   addIconAtCenter: (payload: DragPayload & { type: 'icon' }) => void;
   addShapeAtCenter: (payload: DragPayload & { type: 'shape' }) => void;
+  applyTemplate: (templateId: string) => void;
+  applyMeetingTemplate: (draft: MeetingTemplateDraft) => void;
   updateActiveObjectFont: (options: { fontFamily?: string; fontSize?: number; fontWeight?: string; textAlign?: string; fill?: string }) => void;
   updateActiveObjectStroke: (options: { stroke?: string; strokeWidth?: number }) => void;
   updateActiveObjectFill: (options: { fill: string }) => void;
@@ -37,6 +39,7 @@ export type CanvasStageHandle = {
   loadCanvas: () => void;
   getCanvasData: () => any;
   loadCanvasFromData: (data: any) => void;
+  exportAsImage: () => string | null;
 };
 
 interface CanvasStageProps {
@@ -50,6 +53,8 @@ interface CanvasStageProps {
   canvasWidth: number;
   canvasHeight: number;
   backgroundColor: string;
+  isLoading?: boolean;
+  onExport: () => void;
   onSelectionChange?: (payload: {
     hasSelection: boolean;
     strokeColor: string | null;
@@ -70,6 +75,247 @@ const BASE_IMAGE_SIZE = 160;
 const BASE_SHAPE_SIZE = 80;
 const CONTROL_SIZE_PX = 20;
 const CONTROL_OFFSET_PX = 12;
+
+type TemplateBox = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  label: string;
+  highlight?: boolean;
+};
+
+type TemplatePreset = {
+  id: string;
+  title: string;
+  subtitle: string;
+  date: string;
+  boxes: TemplateBox[];
+};
+
+const TEMPLATE_PRESETS: TemplatePreset[] = [
+  {
+    id: 'l1',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 1, label: 'Content Column 1' },
+      { x: 0.51, y: 0, w: 0.49, h: 1, label: 'Content Column 2' },
+    ],
+  },
+  {
+    id: 'l2',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.32, h: 1, label: 'Content Column 1' },
+      { x: 0.34, y: 0, w: 0.32, h: 1, label: 'Content Column 2' },
+      { x: 0.68, y: 0, w: 0.32, h: 1, label: 'Content Column 3' },
+    ],
+  },
+  {
+    id: 'l3',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.32, h: 1, label: 'Content Column 1' },
+      { x: 0.34, y: 0, w: 0.32, h: 1, label: 'Content Column 2' },
+      { x: 0.68, y: 0, w: 0.32, h: 1, label: 'Content Column 3' },
+    ],
+  },
+  {
+    id: 'l4',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 1, h: 0.26, label: 'Highlight Content', highlight: true },
+      { x: 0, y: 0.3, w: 0.235, h: 0.7, label: 'Content Column 1' },
+      { x: 0.255, y: 0.3, w: 0.235, h: 0.7, label: 'Content Column 2' },
+      { x: 0.51, y: 0.3, w: 0.235, h: 0.7, label: 'Content Column 3' },
+      { x: 0.765, y: 0.3, w: 0.235, h: 0.7, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'l5',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.235, h: 1, label: 'Content Column 1' },
+      { x: 0.255, y: 0, w: 0.235, h: 1, label: 'Content Column 2' },
+      { x: 0.51, y: 0, w: 0.235, h: 1, label: 'Content Column 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'l6',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 1, h: 0.22, label: 'Highlight Content', highlight: true },
+      { x: 0, y: 0.26, w: 0.15, h: 0.74, label: 'Content 1' },
+      { x: 0.17, y: 0.26, w: 0.15, h: 0.74, label: 'Content 2' },
+      { x: 0.34, y: 0.26, w: 0.15, h: 0.74, label: 'Content 3' },
+      { x: 0.51, y: 0.26, w: 0.15, h: 0.74, label: 'Content 4' },
+      { x: 0.68, y: 0.26, w: 0.15, h: 0.74, label: 'Content 5' },
+      { x: 0.85, y: 0.26, w: 0.15, h: 0.74, label: 'Content 6' },
+    ],
+  },
+  {
+    id: 'l7',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.19, h: 1, label: 'Content Column 1' },
+      { x: 0.202, y: 0, w: 0.19, h: 1, label: 'Content Column 2' },
+      { x: 0.404, y: 0, w: 0.19, h: 1, label: 'Content Column 3' },
+      { x: 0.606, y: 0, w: 0.19, h: 1, label: 'Content Column 4' },
+      { x: 0.808, y: 0, w: 0.19, h: 1, label: 'Content Column 5' },
+    ],
+  },
+  {
+    id: 'l8',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0.05, w: 0.235, h: 0.4, label: '01' },
+      { x: 0.255, y: 0.05, w: 0.235, h: 0.4, label: '02' },
+      { x: 0.51, y: 0.05, w: 0.235, h: 0.4, label: '03' },
+      { x: 0.765, y: 0.05, w: 0.235, h: 0.4, label: '04' },
+      { x: 0, y: 0.55, w: 0.235, h: 0.4, label: 'Content Column 1' },
+      { x: 0.255, y: 0.55, w: 0.235, h: 0.4, label: 'Content Column 2' },
+      { x: 0.51, y: 0.55, w: 0.235, h: 0.4, label: 'Content Column 3' },
+      { x: 0.765, y: 0.55, w: 0.235, h: 0.4, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'l9',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.24, h: 1, label: 'PHASE 1' },
+      { x: 0.255, y: 0, w: 0.24, h: 1, label: 'PHASE 2' },
+      { x: 0.51, y: 0, w: 0.24, h: 1, label: 'PHASE 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'PHASE 4' },
+      { x: 0.28, y: 0.06, w: 0.44, h: 0.2, label: 'Highlight Content', highlight: true },
+    ],
+  },
+  {
+    id: 'p1',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 0.49, label: 'Content 1' },
+      { x: 0.51, y: 0, w: 0.49, h: 0.49, label: 'Content 2' },
+      { x: 0, y: 0.51, w: 0.49, h: 0.49, label: 'Content 3' },
+      { x: 0.51, y: 0.51, w: 0.49, h: 0.49, label: 'Content 4' },
+    ],
+  },
+  {
+    id: 'p2',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 0.28, label: 'Highlight 1', highlight: true },
+      { x: 0.51, y: 0, w: 0.49, h: 0.28, label: 'Highlight 2', highlight: true },
+      { x: 0, y: 0.32, w: 0.49, h: 0.68, label: 'Content Column 1' },
+      { x: 0.51, y: 0.32, w: 0.49, h: 0.68, label: 'Content Column 2' },
+    ],
+  },
+  {
+    id: 'p3',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 1, label: 'Content Column 1' },
+      { x: 0.51, y: 0, w: 0.49, h: 1, label: 'Content Column 2' },
+    ],
+  },
+  {
+    id: 'p4',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.32, h: 1, label: 'Content Column 1' },
+      { x: 0.34, y: 0, w: 0.32, h: 1, label: 'Content Column 2' },
+      { x: 0.68, y: 0, w: 0.32, h: 1, label: 'Content Column 3' },
+    ],
+  },
+  {
+    id: 'p5',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.235, h: 1, label: 'Content Column 1' },
+      { x: 0.255, y: 0, w: 0.235, h: 1, label: 'Content Column 2' },
+      { x: 0.51, y: 0, w: 0.235, h: 1, label: 'Content Column 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'p6',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.49, h: 0.49, label: 'Content Column 1' },
+      { x: 0.51, y: 0, w: 0.49, h: 0.49, label: 'Content Column 2' },
+      { x: 0, y: 0.51, w: 0.49, h: 0.49, label: 'Content Column 3' },
+      { x: 0.51, y: 0.51, w: 0.49, h: 0.49, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'p7',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 1, h: 0.24, label: 'Highlight Content', highlight: true },
+      { x: 0, y: 0.28, w: 0.24, h: 0.72, label: 'Content Column 1' },
+      { x: 0.255, y: 0.28, w: 0.24, h: 0.72, label: 'Content Column 2' },
+      { x: 0.51, y: 0.28, w: 0.24, h: 0.72, label: 'Content Column 3' },
+      { x: 0.765, y: 0.28, w: 0.235, h: 0.72, label: 'Content Column 4' },
+    ],
+  },
+  {
+    id: 'p8',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.24, h: 1, label: 'Content Column 1' },
+      { x: 0.255, y: 0, w: 0.24, h: 1, label: 'Content Column 2' },
+      { x: 0.51, y: 0, w: 0.24, h: 1, label: 'Content Column 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'Content Column 4' },
+      { x: 0.29, y: 0.05, w: 0.42, h: 0.18, label: 'Highlight Content', highlight: true },
+    ],
+  },
+  {
+    id: 'p9',
+    title: 'Title',
+    subtitle: 'Subtitle',
+    date: 'Date & Venue',
+    boxes: [
+      { x: 0, y: 0, w: 0.235, h: 1, label: 'Content Column 1' },
+      { x: 0.255, y: 0, w: 0.235, h: 1, label: 'Content Column 2' },
+      { x: 0.51, y: 0, w: 0.235, h: 1, label: 'Content Column 3' },
+      { x: 0.765, y: 0, w: 0.235, h: 1, label: 'Content Column 4' },
+    ],
+  },
+];
 
 const createSvgIcon = (svg: string) => {
   const image = new Image();
@@ -107,7 +353,11 @@ const handleDelete = (_eventData: MouseEvent, transform: fabric.Transform) => {
 };
 
 const createCustomControls = () => {
-  const controls = fabric.controlsUtils.createObjectDefaultControls();
+  const controls = fabric.controlsUtils.createObjectDefaultControls() as ReturnType<
+    typeof fabric.controlsUtils.createObjectDefaultControls
+  > & {
+    deleteControl?: fabric.Control;
+  };
   controls.deleteControl = new fabric.Control({
     x: 0.5,
     y: -0.5,
@@ -163,16 +413,65 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
   canvasWidth,
   canvasHeight,
   backgroundColor,
+  isLoading,
+  onExport,
   onSelectionChange,
 }, ref) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [objectCount, setObjectCount] = useState(0);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
   const currentPathRef = useRef<fabric.Path | null>(null);
   const pointsRef = useRef<{ x: number; y: number }[]>([]);
   const selectionChangeRef = useRef<CanvasStageProps['onSelectionChange']>(onSelectionChange);
+
+  const saveCanvasToStorage = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    try {
+      const json = canvas.toObject(['controls']);
+      localStorage.setItem('canvasData', JSON.stringify(json));
+    } catch (error) {
+      console.error('Error saving canvas:', error);
+    }
+  };
+
+  const updateObjectCount = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    setObjectCount(canvas.getObjects().length);
+  };
+
+  const clearCanvasObjects = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    canvas.getObjects().forEach((object) => canvas.remove(object));
+    canvas.discardActiveObject();
+  };
+
+  const loadCanvasFromStorage = () => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    try {
+      const data = localStorage.getItem('canvasData');
+      if (!data) return;
+
+      const json = JSON.parse(data);
+      canvas
+        .loadFromJSON(json)
+        .then(() => {
+          canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
+          canvas.requestRenderAll();
+        })
+        .catch((error) => {
+          console.error('Error loading canvas:', error);
+        });
+    } catch (error) {
+      console.error('Error loading canvas:', error);
+    }
+  };
 
   const textSamples = useMemo(
     () => ({
@@ -202,15 +501,17 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     });
     canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
 
-    const handleObjectAdded = (event: fabric.IEvent) => {
+    const handleObjectAdded = (event: { target?: fabric.Object }) => {
       if (event.target) {
         applyCustomControlsToObject(event.target);
       }
+      updateObjectCount();
     };
     canvas.on('object:added', handleObjectAdded);
+    canvas.on('object:removed', updateObjectCount);
 
     setTimeout(() => {
-      canvasRef.current?.loadCanvas();
+      loadCanvasFromStorage();
     }, 100);
 
     const emitSelectionChange = () => {
@@ -268,15 +569,19 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       canvas.requestRenderAll();
     });
 
-    canvas.on('object:added', () => canvasRef.current?.saveCanvas());
-    canvas.on('object:modified', () => canvasRef.current?.saveCanvas());
-    canvas.on('object:removed', () => canvasRef.current?.saveCanvas());
+    canvas.on('object:added', saveCanvasToStorage);
+    canvas.on('object:modified', saveCanvasToStorage);
+    canvas.on('object:removed', saveCanvasToStorage);
 
     return () => {
       canvas.off('object:added', handleObjectAdded);
+      canvas.off('object:removed', updateObjectCount);
       canvas.off('selection:created', handleSelectionEvent);
       canvas.off('selection:updated', handleSelectionEvent);
       canvas.off('selection:cleared', handleSelectionEvent);
+      canvas.off('object:added', saveCanvasToStorage);
+      canvas.off('object:modified', saveCanvasToStorage);
+      canvas.off('object:removed', saveCanvasToStorage);
       canvas.dispose();
       fabricRef.current = null;
     };
@@ -333,6 +638,105 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const applyTemplateToCanvas = (templateId: string, draft?: MeetingTemplateDraft) => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+
+    const preset = TEMPLATE_PRESETS.find((item) => item.id === templateId);
+    if (!preset) return;
+
+    clearCanvasObjects();
+
+    const canvasWidthPx = canvas.getWidth();
+    const canvasHeightPx = canvas.getHeight();
+    const paddingX = Math.max(26, canvasWidthPx * 0.04);
+    const headerTop = Math.max(22, canvasHeightPx * 0.03);
+    const contentTop = Math.max(118, canvasHeightPx * 0.2);
+    const contentBottomPadding = Math.max(24, canvasHeightPx * 0.05);
+    const contentWidth = canvasWidthPx - paddingX * 2;
+    const contentHeight = Math.max(120, canvasHeightPx - contentTop - contentBottomPadding);
+    const textColor = theme === 'dark' ? '#f8fafc' : '#0f172a';
+    const subtleTextColor = theme === 'dark' ? '#94a3b8' : '#64748b';
+    const boxFill = theme === 'dark' ? 'rgba(255,255,255,0.04)' : '#f8fafc';
+    const boxStroke = theme === 'dark' ? 'rgba(255,255,255,0.22)' : '#cbd5e1';
+    const highlightFill = theme === 'dark' ? 'rgba(248,175,36,0.2)' : '#fde68a';
+    const highlightStroke = theme === 'dark' ? 'rgba(248,175,36,0.55)' : '#f59e0b';
+
+    const sectionLabels = draft?.sections?.length ? draft.sections : preset.boxes.map((box) => box.label);
+
+    const title = new fabric.Textbox(draft?.title || preset.title, {
+      left: paddingX,
+      top: headerTop,
+      fontSize: Math.max(28, canvasHeightPx * 0.055),
+      fontWeight: '700',
+      fill: textColor,
+      width: Math.max(220, canvasWidthPx * 0.56),
+      editable: true,
+    });
+
+    const subtitle = new fabric.Textbox(draft?.subtitle || preset.subtitle, {
+      left: paddingX,
+      top: headerTop + Math.max(40, canvasHeightPx * 0.075),
+      fontSize: Math.max(16, canvasHeightPx * 0.03),
+      fontWeight: '400',
+      fill: subtleTextColor,
+      width: Math.max(220, canvasWidthPx * 0.62),
+      editable: true,
+    });
+
+    const dateAndVenue = new fabric.Textbox(draft?.dateLabel || preset.date, {
+      left: canvasWidthPx - paddingX,
+      top: headerTop + Math.max(8, canvasHeightPx * 0.015),
+      originX: 'right',
+      fontSize: Math.max(13, canvasHeightPx * 0.023),
+      fontWeight: '500',
+      textAlign: 'right',
+      fill: subtleTextColor,
+      width: Math.max(180, canvasWidthPx * 0.24),
+      editable: true,
+    });
+
+    canvas.add(title, subtitle, dateAndVenue);
+
+    preset.boxes.forEach((box, index) => {
+      const left = paddingX + box.x * contentWidth;
+      const top = contentTop + box.y * contentHeight;
+      const width = Math.max(64, box.w * contentWidth);
+      const height = Math.max(48, box.h * contentHeight);
+      const labelText = sectionLabels[index] || box.label;
+
+      const rect = new fabric.Rect({
+        left,
+        top,
+        width,
+        height,
+        fill: box.highlight ? highlightFill : boxFill,
+        stroke: box.highlight ? highlightStroke : boxStroke,
+        strokeWidth: box.highlight ? 1.8 : 1.2,
+        rx: 16,
+        ry: 16,
+      });
+
+      const label = new fabric.Textbox(labelText, {
+        left: left + width / 2,
+        top: top + height / 2,
+        originX: 'center',
+        originY: 'center',
+        textAlign: 'center',
+        fontSize: Math.max(11, Math.min(16, height * 0.17)),
+        width: Math.max(56, width - 16),
+        fontWeight: box.highlight ? '700' : '500',
+        fill: textColor,
+        editable: true,
+      });
+
+      canvas.add(rect, label);
+    });
+
+    canvas.discardActiveObject();
+    canvas.requestRenderAll();
+  };
+
   useImperativeHandle(ref, () => ({
     addTextAtCenter: (payload) => {
       const canvas = fabricRef.current;
@@ -361,6 +765,14 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       const left = canvas.getWidth() / 2;
       const top = canvas.getHeight() / 2;
       addShape(payload, left, top);
+    },
+    applyTemplate: (templateId) => {
+      applyTemplateToCanvas(templateId);
+      saveCanvasToStorage();
+    },
+    applyMeetingTemplate: (draft) => {
+      applyTemplateToCanvas(draft.templateId, draft);
+      saveCanvasToStorage();
     },
     updateActiveObjectFont: (options) => {
       const canvas = fabricRef.current;
@@ -453,39 +865,15 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       canvas.requestRenderAll();
     },
 
-    saveCanvas: () => {
-      const canvas = fabricRef.current;
-      if (!canvas) return;
-      try {
-        const json = canvas.toJSON(['controls']);
-        localStorage.setItem('canvasData', JSON.stringify(json));
-      } catch (error) {
-        console.error('Error saving canvas:', error);
-      }
-    },
+    saveCanvas: saveCanvasToStorage,
 
-    loadCanvas: () => {
-      const canvas = fabricRef.current;
-      if (!canvas) return;
-      try {
-        const data = localStorage.getItem('canvasData');
-        if (data) {
-          const json = JSON.parse(data);
-          canvas.loadFromJSON(json, () => {
-            canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
-            canvas.requestRenderAll();
-          });
-        }
-      } catch (error) {
-        console.error('Error loading canvas:', error);
-      }
-    },
+    loadCanvas: loadCanvasFromStorage,
 
     getCanvasData: () => {
       const canvas = fabricRef.current;
       if (!canvas) return null;
       try {
-        return canvas.toJSON(['controls']);
+        return canvas.toObject(['controls']);
       } catch (error) {
         console.error('Error getting canvas data:', error);
         return null;
@@ -496,12 +884,31 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
       const canvas = fabricRef.current;
       if (!canvas) return;
       try {
-        canvas.loadFromJSON(data, () => {
-          canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
-          canvas.requestRenderAll();
-        });
+        canvas
+          .loadFromJSON(data)
+          .then(() => {
+            canvas.getObjects().forEach((object) => applyCustomControlsToObject(object));
+            canvas.requestRenderAll();
+          })
+          .catch((error) => {
+            console.error('Error loading canvas from data:', error);
+          });
       } catch (error) {
         console.error('Error loading canvas from data:', error);
+      }
+    },
+    exportAsImage: () => {
+      const canvas = fabricRef.current;
+      if (!canvas) return null;
+      try {
+        return canvas.toDataURL({
+          format: 'png',
+          multiplier: 2,
+          enableRetinaScaling: true,
+        });
+      } catch (error) {
+        console.error('Error exporting canvas:', error);
+        return null;
       }
     },
   }));
@@ -509,6 +916,31 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
   const addIcon = (payload: DragPayload & { type: 'icon' }, left: number, top: number) => {
     const canvas = fabricRef.current;
     if (!canvas) return;
+
+    const iconUrl = payload.url.toLowerCase();
+    const isSvgIcon = iconUrl.endsWith('.svg') || iconUrl.startsWith('data:image/svg+xml');
+
+    if (!isSvgIcon) {
+      fabric.FabricImage.fromURL(payload.url, { crossOrigin: 'anonymous' })
+        .then((img) => {
+          const scale = BASE_ICON_SIZE / Math.max(img.width || 1, img.height || 1);
+          img.set({
+            left,
+            top,
+            originX: 'center',
+            originY: 'center',
+            scaleX: scale,
+            scaleY: scale,
+          });
+          canvas.add(img);
+          canvas.setActiveObject(img);
+          canvas.requestRenderAll();
+        })
+        .catch(() => {
+          // Ignore failed icon loads to keep the canvas responsive.
+        });
+      return;
+    }
 
     fabric
       .loadSVGFromURL(payload.url, undefined, { crossOrigin: 'anonymous' })
@@ -806,32 +1238,137 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
   };
 
   return (
-    <main className="flex-1 rounded-3xl relative overflow-hidden flex flex-col">
-      <div className="flex items-center justify-end px-4 py-3">
-        <button
-          type="button"
-          onClick={onToggleProperties}
-          className={`p-2.5 rounded-xl transition-all ${
-            showProperties ? 'bg-primary/20 text-primary' : 'hover:bg-black/5 dark:hover:bg-white/10'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[20px]">
-            {showProperties ? 'dock_to_right' : 'dock_to_left'}
-          </span>
-        </button>
+    <main className={`relative flex flex-1 flex-col overflow-hidden rounded-[34px] border ${
+      theme === 'dark'
+        ? 'border-white/10 bg-[#0b1220]/72 shadow-[0_24px_64px_rgba(2,6,23,0.32)]'
+        : 'border-white/80 bg-white/78 shadow-[0_24px_54px_rgba(15,23,42,0.08)]'
+    }`}>
+      <div className={`flex items-center justify-between gap-4 border-b px-6 py-5 ${
+        theme === 'dark' ? 'border-white/10' : 'border-slate-200/80'
+      }`}>
+        <div className="min-w-0">
+          <p className={`text-[10px] font-semibold uppercase tracking-[0.22em] ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+            {t('canvas_workspace_label')}
+          </p>
+          <h2 className={`mt-2 text-xl font-semibold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+            {t('canvas_title')}
+          </h2>
+          <p className={`mt-1 text-sm leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            {activeTool ? t('canvas_toolbar_desc') : t('canvas_desc')}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className={`hidden rounded-full px-3 py-2 text-xs font-medium md:block ${
+            theme === 'dark' ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-100 text-slate-600'
+          }`}>
+            {isLoading ? t('canvas_loading') : `${canvasWidth} × ${canvasHeight}px`}
+          </div>
+          <button
+            type="button"
+            onClick={onExport}
+            className="rounded-2xl bg-primary px-4 py-3 text-sm font-semibold text-navy transition-colors hover:bg-primary-hover"
+          >
+            {t('export')}
+          </button>
+          <button
+            type="button"
+            aria-label={t('canvas_properties_toggle')}
+            onClick={onToggleProperties}
+            className={`rounded-2xl border p-3 transition-all ${
+              showProperties
+                ? 'border-primary/30 bg-primary/12 text-primary'
+                : theme === 'dark'
+                  ? 'border-white/10 text-slate-400 hover:bg-white/[0.04] hover:text-white'
+                  : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              {showProperties ? 'dock_to_right' : 'dock_to_left'}
+            </span>
+          </button>
+        </div>
       </div>
-      <div className="flex-1 relative overflow-auto flex items-start justify-center p-12">
+      <div className={`flex items-center justify-between gap-4 border-b px-6 py-4 ${theme === 'dark' ? 'border-white/8' : 'border-slate-200/70'}`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] ${
+            theme === 'dark' ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-100 text-slate-600'
+          }`}>
+            {activeTool ? t('canvas_toolbar_label') : t('canvas_selection_label')}
+          </span>
+          <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            {activeTool ? t('canvas_drop_hint') : t('canvas_selection_desc')}
+          </span>
+        </div>
+        <div className={`rounded-full px-3 py-1.5 text-[11px] font-semibold ${
+          theme === 'dark' ? 'bg-white/[0.05] text-slate-300' : 'bg-slate-100 text-slate-600'
+        }`}>
+          {objectCount} {t('canvas_items')}
+        </div>
+      </div>
+      <div className="relative flex flex-1 items-start justify-center overflow-auto p-6 md:p-10 xl:p-12">
+        <div className={`absolute inset-5 rounded-[30px] ${
+          theme === 'dark'
+            ? 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.04),transparent_60%)]'
+            : 'bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.9),rgba(241,245,249,0.3)_58%)]'
+        }`} />
+        <div className={`absolute inset-5 rounded-[30px] ${theme === 'dark' ? 'bg-white/[0.02]' : 'bg-slate-100/70'}`} />
+        <div className={`absolute inset-5 app-grid-bg opacity-30 ${theme === 'dark' ? 'text-white' : 'text-slate-300'}`} />
         <div
           ref={wrapperRef}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           style={{ width: `${canvasWidth}px`, height: `${canvasHeight}px` }}
-          className={`relative border-2 shadow-2xl rounded-3xl shrink-0 ${
-            theme === 'dark' ? 'border-white/10' : 'border-gray-200'
+          className={`relative z-10 shrink-0 rounded-[30px] border shadow-[0_32px_80px_rgba(15,23,42,0.16)] ${
+            theme === 'dark' ? 'border-white/10 bg-[#111827]' : 'border-white bg-white'
           } ${isDragOver ? 'ring-2 ring-primary/70' : ''}`}
         >
-          <canvas ref={canvasRef} className="w-full h-full rounded-3xl" />
+          <div className={`pointer-events-none absolute inset-x-6 top-5 z-10 flex items-center justify-between text-[11px] font-medium ${
+            theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+          }`}>
+            <span>{canvasWidth} px</span>
+            <span>{canvasHeight} px</span>
+          </div>
+          <canvas ref={canvasRef} className="h-full w-full rounded-[30px]" />
+          {objectCount === 0 && !isLoading && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8">
+              <div className={`max-w-[440px] rounded-[30px] border px-7 py-6 text-left ${
+                theme === 'dark'
+                  ? 'border-white/10 bg-[#0b1220]/82 text-slate-300 shadow-[0_24px_48px_rgba(2,6,23,0.35)]'
+                  : 'border-white bg-white/94 text-slate-600 shadow-[0_20px_36px_rgba(15,23,42,0.12)]'
+              }`}>
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-[18px] bg-primary/14 text-primary">
+                  <span className="material-symbols-outlined text-[24px]">draw</span>
+                </div>
+                <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{t('canvas_empty_title')}</h3>
+                <p className="mt-2 text-sm leading-6">{t('canvas_empty_desc')}</p>
+                <div className="mt-5 grid gap-3">
+                  {[
+                    { title: t('canvas_empty_step_tools'), desc: t('canvas_empty_step_tools_desc') },
+                    { title: t('canvas_empty_step_add'), desc: t('canvas_empty_step_add_desc') },
+                    { title: t('canvas_empty_step_edit'), desc: t('canvas_empty_step_edit_desc') },
+                  ].map((item) => (
+                    <div
+                      key={item.title}
+                      className={`rounded-2xl border px-4 py-3 ${
+                        theme === 'dark' ? 'border-white/8 bg-white/[0.03]' : 'border-slate-200 bg-slate-50'
+                      }`}
+                    >
+                      <p className={`text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{item.title}</p>
+                      <p className={`mt-1 text-xs leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>{item.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          {isDragOver && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-[30px] bg-primary/10">
+              <div className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-navy">
+                {t('canvas_drop_hint')}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </main>

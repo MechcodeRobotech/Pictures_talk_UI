@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useSignIn } from '@clerk/clerk-react';
 import Header from '../components/Common/Header';
+import { useLanguage } from '../LanguageContext';
 
 type ClerkError = {
   errors?: Array<{ message?: string; longMessage?: string; code?: string }>;
@@ -34,6 +35,7 @@ interface ForgotPassProps {
 }
 
 const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { signIn, isLoaded, setActive } = useSignIn();
   const { isSignedIn, isLoaded: isAuthLoaded } = useAuth();
@@ -85,7 +87,7 @@ const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
         emailAddressId: emailFactor.emailAddressId,
       });
       setStep('reset');
-      setInfo('We sent a verification code to your email.');
+      setInfo(t('forgot_email_sent'));
     } catch (err: unknown) {
       const { message } = getClerkError(err, 'Unable to send reset email. Please try again.');
       setError(message);
@@ -147,18 +149,16 @@ const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
       <Main>
         <Card>
           <CardHeader>
-            <h1>Forgot password?</h1>
+            <h1>{t('forgot_title')}</h1>
             <p>
-              {step === 'request'
-                ? 'Enter your email address and we will send you a verification code.'
-                : 'Enter the code from your email and choose a new password.'}
+              {step === 'request' ? t('forgot_request_desc') : t('forgot_reset_desc')}
             </p>
           </CardHeader>
 
           {step === 'request' ? (
             <Form onSubmit={handleRequestReset} noValidate>
               <Field>
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email">{t('email')}</Label>
                 <InputWrap>
                   <InputIcon className="material-symbols-outlined" aria-hidden="true">mail</InputIcon>
                   <Input
@@ -176,19 +176,19 @@ const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
               {info && <InfoText role="status">{info}</InfoText>}
 
               <PrimaryButton type="submit" disabled={!isLoaded || isSubmitting}>
-                {isSubmitting ? 'Sending...' : 'Send reset code'}
+                {isSubmitting ? t('forgot_sending') : t('forgot_send_code')}
               </PrimaryButton>
             </Form>
           ) : (
             <Form onSubmit={handleResetPassword} noValidate>
               <Field>
-                <Label htmlFor="code">Verification code</Label>
+                <Label htmlFor="code">{t('forgot_code')}</Label>
                 <InputWrap>
                   <InputIcon className="material-symbols-outlined" aria-hidden="true">pin</InputIcon>
                   <Input
                     id="code"
                     name="code"
-                    placeholder="Enter the code"
+                    placeholder={t('forgot_code')}
                     type="text"
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
@@ -197,13 +197,13 @@ const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
               </Field>
 
               <Field>
-                <Label htmlFor="newPassword">New password</Label>
+                <Label htmlFor="newPassword">{t('forgot_new_password')}</Label>
                 <InputWrap>
                   <InputIcon className="material-symbols-outlined" aria-hidden="true">lock</InputIcon>
                   <Input
                     id="newPassword"
                     name="newPassword"
-                    placeholder="********"
+                    placeholder="••••••••"
                     type="password"
                     value={newPassword}
                     onChange={(event) => setNewPassword(event.target.value)}
@@ -212,13 +212,13 @@ const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
               </Field>
 
               <Field>
-                <Label htmlFor="confirmPassword">Confirm password</Label>
+                <Label htmlFor="confirmPassword">{t('forgot_confirm_password')}</Label>
                 <InputWrap>
                   <InputIcon className="material-symbols-outlined" aria-hidden="true">lock</InputIcon>
                   <Input
                     id="confirmPassword"
                     name="confirmPassword"
-                    placeholder="********"
+                    placeholder="••••••••"
                     type="password"
                     value={confirmPassword}
                     onChange={(event) => setConfirmPassword(event.target.value)}
@@ -230,11 +230,11 @@ const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
               {info && <InfoText role="status">{info}</InfoText>}
 
               <PrimaryButton type="submit" disabled={!isLoaded || isSubmitting || !emailAddressId}>
-                {isSubmitting ? 'Resetting...' : 'Reset password'}
+                {isSubmitting ? t('forgot_resetting') : t('forgot_reset_btn')}
               </PrimaryButton>
 
               <InlineLink type="button" onClick={() => setStep('request')}>
-                Use a different email
+                {t('forgot_use_different_email')}
               </InlineLink>
             </Form>
           )}
@@ -242,7 +242,7 @@ const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
           <HelperRow>
             <Link to="/login">
               <span className="material-symbols-outlined" aria-hidden="true">arrow_back</span>
-              Back to log in
+              {t('forgot_back_login')}
             </Link>
           </HelperRow>
         </Card>
@@ -250,13 +250,13 @@ const ForgotPass: React.FC<ForgotPassProps> = ({ isDarkMode, toggleTheme }) => {
 
       <Footer>
         <FooterLinks>
-          <a href="#">Privacy Policy</a>
+          <a href="#">{t('privacy')}</a>
           <span />
-          <a href="#">Terms of Service</a>
+          <a href="#">{t('terms')}</a>
           <span />
-          <a href="#">Help Center</a>
+          <a href="#">{t('help')}</a>
         </FooterLinks>
-        <FooterNote>(c) 2024 Pictures Talk AI. All rights reserved.</FooterNote>
+        <FooterNote>{t('footer_note')}</FooterNote>
       </Footer>
     </Page>
   );

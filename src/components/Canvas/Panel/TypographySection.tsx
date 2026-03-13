@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Theme } from '../../../types';
 import type { CanvasStageHandle } from '../CanvasStage';
 
@@ -14,613 +14,280 @@ interface TypographySectionProps {
   } | null;
 }
 
+interface FontOption {
+  label: string;
+  family: string;
+  spec: string;
+}
+
 const GOOGLE_FONTS_API_URL = 'https://fonts.googleapis.com/css2?family=';
-// ฟอนต์ยอดนิยม - โหลดตอน mount (50 ฟอนต์)
-const POPULAR_FONTS = [
-  // ฟอนต์ภาษาไทย
-  'Kanit:wght@100;200;300;400;500;600;700;800;900',
-  'Prompt:wght@100;200;300;400;500;600;700;800;900',
-  'Sarabun:wght@100;200;300;400;500;600;700;800;900',
-  'Chakra Petch:wght@100;200;300;400;500;600;700;800;900',
-  'Mitr:wght@100;200;300;400;500;600;700;800;900',
-  'IBM Plex Sans Thai:wght@100;200;300;400;500;600;700;800;900',
-  'Noto Sans Thai:wght@100;200;300;400;500;600;700;800;900',
-  'Sriracha:wght@100;200;300;400;500;600;700;800;900',
-  'Chonburi:wght@100;200;300;400;500;600;700;800;900',
-  'Athiti:wght@100;200;300;400;500;600;700;800;900',
-  // ฟอนต์อินเตอร์เนชันัลยอดนิยม
-  'Inter:wght@100;200;300;400;500;600;700;800;900',
-  'Roboto:wght@100;200;300;400;500;600;700;800;900',
-  'Open Sans:wght@100;200;300;400;500;600;700;800;900',
-  'Montserrat:wght@100;200;300;400;500;600;700;800;900',
-  'Lato:wght@100;200;300;400;500;600;700;800;900',
-  'Poppins:wght@100;200;300;400;500;600;700;800;900',
-  'Source Sans Pro:wght@100;200;300;400;500;600;700;800;900',
-  'Ubuntu:wght@100;200;300;400;500;600;700;800;900',
-  'Nunito:wght@100;200;300;400;500;600;700;800;900',
-  'Raleway:wght@100;200;300;400;500;600;700;800;900',
-  'Oswald:wght@100;200;300;400;500;600;700;800;900',
-  'Roboto Condensed:wght@100;200;300;400;500;600;700;800;900',
-  'Oxygen:wght@100;200;300;400;500;600;700;800;900',
-  'Merriweather:wght@100;200;300;400;500;600;700;800;900',
-  'Playfair Display:wght@100;200;300;400;500;600;700;800;900',
-  'Abril Fatface:wght@100;200;300;400;500;600;700;800;900',
-  'Dancing Script:wght@100;200;300;400;500;600;700;800;900',
-  'Pacifico:wght@100;200;300;400;500;600;700;800;900',
-  'Lobster:wght@100;200;300;400;500;600;700;800;900',
-  'Caveat:wght@100;200;300;400;500;600;700;800;900',
-  'Quicksand:wght@100;200;300;400;500;600;700;800;900',
-  'Noto Sans:wght@100;200;300;400;500;600;700;800;900',
-  'Roboto Mono:wght@100;200;300;400;500;600;700;800;900',
-  'Fira Code:wght@100;200;300;400;500;600;700;800;900',
-  'JetBrains Mono:wght@100;200;300;400;500;600;700;800;900',
-  'Barlow:wght@100;200;300;400;500;600;700;800;900',
-  'Cinzel:wght@100;200;300;400;500;600;700;800;900',
-  'Lora:wght@100;200;300;400;500;600;700;800;900',
-  'Bebas Neue:wght@100;200;300;400;500;600;700;800;900',
-  'Josefin Sans:wght@100;200;300;400;500;600;700;800;900',
-  'Work Sans:wght@100;200;300;400;500;600;700;800;900',
-  'Manrope:wght@100;200;300;400;500;600;700;800;900',
-  'DM Sans:wght@100;200;300;400;500;600;700;800;900',
-  'Plus Jakarta Sans:wght@100;200;300;400;500;600;700;800;900',
-  'Outfit:wght@100;200;300;400;500;600;700;800;900',
-  'Space Grotesk:wght@100;200;300;400;500;600;700;800;900',
-  'Space Mono:wght@100;200;300;400;500;600;700;800;900',
-  'Bodoni Moda:wght@100;200;300;400;500;600;700;800;900',
-  'Libre Baskerville:wght@100;200;300;400;500;600;700;800;900',
+const FONT_OPTIONS: FontOption[] = [
+  { label: 'Kanit', family: 'Kanit', spec: 'Kanit:wght@300;400;500;600;700' },
+  { label: 'Prompt', family: 'Prompt', spec: 'Prompt:wght@300;400;500;600;700' },
+  { label: 'Sarabun', family: 'Sarabun', spec: 'Sarabun:wght@300;400;500;600;700' },
+  { label: 'IBM Plex Sans Thai', family: 'IBM Plex Sans Thai', spec: 'IBM Plex Sans Thai:wght@300;400;500;600;700' },
+  { label: 'Inter', family: 'Inter', spec: 'Inter:wght@300;400;500;600;700;800' },
+  { label: 'Manrope', family: 'Manrope', spec: 'Manrope:wght@300;400;500;600;700;800' },
+  { label: 'DM Sans', family: 'DM Sans', spec: 'DM Sans:wght@300;400;500;700' },
+  { label: 'Plus Jakarta Sans', family: 'Plus Jakarta Sans', spec: 'Plus Jakarta Sans:wght@300;400;500;600;700;800' },
+  { label: 'Outfit', family: 'Outfit', spec: 'Outfit:wght@300;400;500;600;700' },
+  { label: 'Space Grotesk', family: 'Space Grotesk', spec: 'Space Grotesk:wght@300;400;500;600;700' },
+  { label: 'Playfair Display', family: 'Playfair Display', spec: 'Playfair Display:wght@400;500;600;700' },
+  { label: 'Merriweather', family: 'Merriweather', spec: 'Merriweather:wght@300;400;700' },
 ];
 
-// ฟอนต์เพิ่มเติม - โหลดเมื่อเลือก (500+ ฟอนต์)
-const ADDITIONAL_FONTS = [
-  'Alegreya:wght@100;200;300;400;500;600;700;800;900',
-  'Alegreya Sans:wght@100;200;300;400;500;600;700;800;900',
-  'Arvo:wght@100;200;300;400;500;600;700;800;900',
-  'Bitter:wght@100;200;300;400;500;600;700;800;900',
-  'Crimson Text:wght@100;200;300;400;500;600;700;800;900',
-  'PT Serif:wght@100;200;300;400;500;600;700;800;900',
-  'Libre Franklin:wght@100;200;300;400;500;600;700;800;900',
-  'Mulish:wght@100;200;300;400;500;600;700;800;900',
-  'Rubik:wght@100;200;300;400;500;600;700;800;900',
-  'Comfortaa:wght@100;200;300;400;500;600;700;800;900',
-  'Righteous:wght@100;200;300;400;500;600;700;800;900',
-  'Architects Daughter:wght@100;200;300;400;500;600;700;800;900',
-  'Kalam:wght@100;200;300;400;500;600;700;800;900',
-  'Handlee:wght@100;200;300;400;500;600;700;800;900',
-  'Shadows Into Light:wght@100;200;300;400;500;600;700;800;900',
-  'Indie Flower:wght@100;200;300;400;500;600;700;800;900',
-  'Permanent Marker:wght@100;200;300;400;500;600;700;800;900',
-  'Gloria Hallelujah:wght@100;200;300;400;500;600;700;800;900',
-  'Rock Salt:wght@100;200;300;400;500;600;700;800;900',
-  'Amatic SC:wght@100;200;300;400;500;600;700;800;900',
-  'Reenie Beanie:wght@100;200;300;400;500;600;700;800;900',
-  'Bangers:wght@100;200;300;400;500;600;700;800;900',
-  'Bungee:wght@100;200;300;400;500;600;700;800;900',
-  'Creepster:wght@100;200;300;400;500;600;700;800;900',
-  'Freckle Face:wght@100;200;300;400;500;600;700;800;900',
-  'Luckiest Guy:wght@100;200;300;400;500;600;700;800;900',
-  'Press Start 2P:wght@100;200;300;400;500;600;700;800;900',
-  'VT323:wght@100;200;300;400;500;600;700;800;900',
-  'ZCOOL KuaiLe:wght@100;200;300;400;500;600;700;800;900',
-  'ZCOOL XiaoWei:wght@100;200;300;400;500;600;700;800;900',
-  'ZCOOL QingKe HuangYou:wght@100;200;300;400;500;600;700;800;900',
-  'Noto Serif:wght@100;200;300;400;500;600;700;800;900',
-  'Playfair:wght@100;200;300;400;500;600;700;800;900',
-  'Cormorant:wght@100;200;300;400;500;600;700;800;900',
-  'Cormorant Garamond:wght@100;200;300;400;500;600;700;800;900',
-  'Old Standard TT:wght@100;200;300;400;500;600;700;800;900',
-  'Cinzel Decorative:wght@100;200;300;400;500;600;700;800;900',
-  'UnifrakturMaguntia:wght@100;200;300;400;500;600;700;800;900',
-  'MedievalSharp:wght@100;200;300;400;500;600;700;800;900',
-  'Prata:wght@100;200;300;400;500;600;700;800;900',
-  'Abril Fatface:wght@100;200;300;400;500;600;700;800;900',
-  'Zeyada:wght@100;200;300;400;500;600;700;800;900',
-  'Alex Brush:wght@100;200;300;400;500;600;700;800;900',
-  'Great Vibes:wght@100;200;300;400;500;600;700;800;900',
-  'Sacramento:wght@100;200;300;400;500;600;700;800;900',
-  'Allura:wght@100;200;300;400;500;600;700;800;900',
-  'Cookie:wght@100;200;300;400;500;600;700;800;900',
-  'Dancing Script:wght@100;200;300;400;500;600;700;800;900',
-  'Kaushan Script:wght@100;200;300;400;500;600;700;800;900',
-  'Parisienne:wght@100;200;300;400;500;600;700;800;900',
-  'Marck Script:wght@100;200;300;400;500;600;700;800;900',
-  'Pinyon Script:wght@100;200;300;400;500;600;700;800;900',
-  'Meie Script:wght@100;200;300;400;500;600;700;800;900',
-  'Satisfy:wght@100;200;300;400;500;600;700;800;900',
-  'Yellowtail:wght@100;200;300;400;500;600;700;800;900',
-  'Tangerine:wght@100;200;300;400;500;600;700;800;900',
-  'Herr Von Muellerhoff:wght@100;200;300;400;500;600;700;800;900',
-  'Felipa:wght@100;200;300;400;500;600;700;800;900',
-  'Walter Turncoat:wght@100;200;300;400;500;600;700;800;900',
-  'Homemade Apple:wght@100;200;300;400;500;600;700;800;900',
-  'Mrs Saint Delafield:wght@100;200;300;400;500;600;700;800;900',
-  'League Script:wght@100;200;300;400;500;600;700;800;900',
-  'Over the Rainbow:wght@100;200;300;400;500;600;700;800;900',
-  'RocknRoll One:wght@100;200;300;400;500;600;700;800;900',
-  'Red Rose:wght@100;200;300;400;500;600;700;800;900',
-  'Linden Hill:wght@100;200;300;400;500;600;700;800;900',
-  'Prosto One:wght@100;200;300;400;500;600;700;800;900',
-  'Alike:wght@100;200;300;400;500;600;700;800;900',
-  'Rouge Script:wght@100;200;300;400;500;600;700;800;900',
-  'Waiting for the Sunrise:wght@100;200;300;400;500;600;700;800;900',
-  'Stalemate:wght@100;200;300;400;500;600;700;800;900',
-  'Englebert:wght@100;200;300;400;500;600;700;800;900',
-  'Sue Ellen Francisco:wght@100;200;300;400;500;600;700;800;900',
-  'Swanky and Moo Moo:wght@100;200;300;400;500;600;700;800;900',
-  'Itim:wght@100;200;300;400;500;600;700;800;900',
-  'Mali:wght@100;200;300;400;500;600;700;800;900',
-  'Thai:Thai:wght@100;200;300;400;500;600;700;800;900',
-  'Fahkwang:wght@100;200;300;400;500;600;700;800;900',
-  'Taviraj:wght@100;200;300;400;500;600;700;800;900',
-  'Kodchasan:wght@100;200;300;400;500;600;700;800;900',
-  'Pridi:wght@100;200;300;400;500;600;700;800;900',
-  'Pridi:wght@100;200;300;400;500;600;700;800;900',
-  'K2D:wght@100;200;300;400;500;600;700;800;900',
-  'KoHo:wght@100;200;300;400;500;600;700;800;900',
-  'Trirong:wght@100;200;300;400;500;600;700;800;900',
-  'Charmonman:wght@100;200;300;400;500;600;700;800;900',
-  'Mali:wght@100;200;300;400;500;600;700;800;900',
-  'Itim:wght@100;200;300;400;500;600;700;800;900',
-  'Pridi:wght@100;200;300;400;500;600;700;800;900',
-  'Kodchasan:wght@100;200;300;400;500;600;700;800;900',
-  'Sriracha:wght@100;200;300;400;500;600;700;800;900',
-  'Chonburi:wght@100;200;300;400;500;600;700;800;900',
-  'Athiti:wght@100;200;300;400;500;600;700;800;900',
-];
-
-// รวมฟอนต์ทั้งหมด (สำหรับค้นหา)
-const ALL_FONTS = [...POPULAR_FONTS, ...ADDITIONAL_FONTS];
-
-const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72];
+const FONT_SIZES = [12, 14, 16, 18, 20, 24, 28, 32, 40, 48, 64];
 const FONT_WEIGHTS = [
-  { value: '100', label: 'Thin', abbr: 'T' },
-  { value: '200', label: 'Extra Light', abbr: 'EL' },
-  { value: '300', label: 'Light', abbr: 'L' },
-  { value: '400', label: 'Regular', abbr: 'R' },
-  { value: '500', label: 'Medium', abbr: 'M' },
-  { value: '600', label: 'Semi Bold', abbr: 'SB' },
-  { value: '700', label: 'Bold', abbr: 'B' },
-  { value: '800', label: 'Extra Bold', abbr: 'EB' },
-  { value: '900', label: 'Black', abbr: 'BL' },
+  { value: '300', label: 'Light' },
+  { value: '400', label: 'Regular' },
+  { value: '500', label: 'Medium' },
+  { value: '600', label: 'Semibold' },
+  { value: '700', label: 'Bold' },
+  { value: '800', label: 'Extra Bold' },
 ];
-const TEXT_ALIGNS = ['left', 'center', 'right'];
+const TEXT_ALIGNS = [
+  { value: 'left', icon: 'format_align_left' },
+  { value: 'center', icon: 'format_align_center' },
+  { value: 'right', icon: 'format_align_right' },
+];
 
 const TypographySection: React.FC<TypographySectionProps> = ({ theme, t, canvasRef, selectionFontData }) => {
   const [selectedFont, setSelectedFont] = useState<string>('Kanit');
   const [selectedSize, setSelectedSize] = useState<number>(16);
   const [selectedWeight, setSelectedWeight] = useState<string>('400');
   const [selectedAlign, setSelectedAlign] = useState<string>('left');
-  const [isLoadingFonts, setIsLoadingFonts] = useState(false);
-  const [loadingAdditionalFonts, setLoadingAdditionalFonts] = useState<string[]>([]);
-  const [isFontDropdownOpen, setIsFontDropdownOpen] = useState(false);
-  const [isWeightDropdownOpen, setIsWeightDropdownOpen] = useState(false);
-  const [isSizeDropdownOpen, setIsSizeDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [loadedFonts, setLoadedFonts] = useState<Record<string, boolean>>({});
 
-  // ติดตามฟอนต์ที่โหลดแล้ว
-  const [loadedFonts, setLoadedFonts] = useState<Set<string>>(new Set());
+  const loadFont = async (font: FontOption) => {
+    if (loadedFonts[font.family]) return;
 
-  // Sync ค่าจาก text object ที่ถูกเลือก
-  useEffect(() => {
-    if (selectionFontData) {
-      if (selectionFontData.fontFamily) {
-        setSelectedFont(selectionFontData.fontFamily);
-        // โหลดฟอนต์ถ้ายังไม่ได้โหลด
-        const fontSpec = ALL_FONTS.find(f => f.startsWith(selectionFontData.fontFamily));
-        if (fontSpec && !loadedFonts.has(selectionFontData.fontFamily)) {
-          setLoadingAdditionalFonts(prev => [...prev, selectionFontData.fontFamily!]);
-          loadFontDynamic(fontSpec);
-        }
-      }
-      if (selectionFontData.fontSize) {
-        setSelectedSize(selectionFontData.fontSize);
-      }
-      if (selectionFontData.fontWeight) {
-        setSelectedWeight(selectionFontData.fontWeight);
-      }
-      if (selectionFontData.textAlign) {
-        setSelectedAlign(selectionFontData.textAlign);
-      }
-    }
-  }, [selectionFontData, loadedFonts]); // ลบ loadFontDynamic ออกเพื่อป้องกัน infinite loop
-
-  // โหลดฟอนต์แบบ dynamic ใช้ FontFace API
-  const loadFontDynamic = useCallback(async (fontSpec: string): Promise<void> => {
-    const fontFamily = fontSpec.split(':')[0];
-    if (loadedFonts.has(fontFamily)) {
-      return;
-    }
-
-    const linkId = `google-font-${fontFamily.replace(/\s+/g, '-').toLowerCase()}`;
+    const linkId = `font-${font.family.replace(/\s+/g, '-').toLowerCase()}`;
     if (document.getElementById(linkId)) {
-      setLoadedFonts(prev => new Set([...prev, fontFamily]));
+      setLoadedFonts((prev) => ({ ...prev, [font.family]: true }));
       return;
     }
 
-    // Load CSS
     const link = document.createElement('link');
     link.id = linkId;
-    link.href = `${GOOGLE_FONTS_API_URL}${encodeURIComponent(fontSpec)}&display=swap&subset=thai,latin`;
     link.rel = 'stylesheet';
-
-    await new Promise<void>((resolve) => {
-      link.onload = () => {
-        console.log('Font CSS loaded:', fontFamily);
-        resolve();
-      };
-      link.onerror = () => {
-        console.error('Font CSS failed to load:', fontFamily);
-        resolve();
-      };
-      document.head.appendChild(link);
-    });
-
-    // Wait for font to be ready using document.fonts.ready
-    try {
-      await document.fonts.ready;
-      console.log('Document fonts ready, checking font:', fontFamily);
-
-      // Check if font is loaded
-      const isLoaded = Array.from(document.fonts).some(font => font.family === fontFamily);
-      if (isLoaded) {
-        console.log('Font successfully loaded:', fontFamily);
-        setLoadedFonts(prev => new Set([...prev, fontFamily]));
-        setLoadingAdditionalFonts(prev => prev.filter(f => f !== fontFamily));
-      } else {
-        console.warn('Font may not be fully loaded:', fontFamily);
-        setLoadedFonts(prev => new Set([...prev, fontFamily]));
-        setLoadingAdditionalFonts(prev => prev.filter(f => f !== fontFamily));
-      }
-    } catch (error) {
-      console.error('Error waiting for fonts:', fontFamily, error);
-      setLoadedFonts(prev => new Set([...prev, fontFamily]));
-      setLoadingAdditionalFonts(prev => prev.filter(f => f !== fontFamily));
-    }
-  }, [loadedFonts]);
-
-  // โหลดฟอนต์ยอดนิยมตอน mount
-  useEffect(() => {
-    setIsLoadingFonts(true);
-
-    const link = document.createElement('link');
-    link.href = `${GOOGLE_FONTS_API_URL}${encodeURIComponent(POPULAR_FONTS.join('&family='))}&display=swap&subset=thai,latin`;
-    link.rel = 'stylesheet';
-
-    const handleLoadComplete = () => {
-      setIsLoadingFonts(false);
-      setLoadedFonts(new Set(POPULAR_FONTS.map(f => f.split(':')[0])));
-    };
-
-    link.onload = handleLoadComplete;
-    link.onerror = handleLoadComplete;
+    link.href = `${GOOGLE_FONTS_API_URL}${encodeURIComponent(font.spec)}&display=swap&subset=thai,latin`;
     document.head.appendChild(link);
 
-    const timeoutId = setTimeout(handleLoadComplete, 15000);
+    await new Promise<void>((resolve) => {
+      link.onload = () => resolve();
+      link.onerror = () => resolve();
+    });
 
-    return () => {
-      clearTimeout(timeoutId);
-      if (link.parentNode) {
-        link.parentNode.removeChild(link);
-      }
-    };
+    setLoadedFonts((prev) => ({ ...prev, [font.family]: true }));
+  };
+
+  useEffect(() => {
+    FONT_OPTIONS.slice(0, 6).forEach((font) => {
+      void loadFont(font);
+    });
   }, []);
 
-  const handleFontChange = useCallback(async (fontFamily: string) => {
+  useEffect(() => {
+    if (!selectionFontData) return;
+
+    if (selectionFontData.fontFamily) {
+      setSelectedFont(selectionFontData.fontFamily);
+      const matchedFont = FONT_OPTIONS.find((font) => font.family === selectionFontData.fontFamily);
+      if (matchedFont) {
+        void loadFont(matchedFont);
+      }
+    }
+    if (selectionFontData.fontSize) {
+      setSelectedSize(selectionFontData.fontSize);
+    }
+    if (selectionFontData.fontWeight) {
+      setSelectedWeight(selectionFontData.fontWeight);
+    }
+    if (selectionFontData.textAlign) {
+      setSelectedAlign(selectionFontData.textAlign);
+    }
+  }, [selectionFontData]);
+
+  const filteredFonts = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return FONT_OPTIONS;
+
+    return FONT_OPTIONS.filter((font) => font.label.toLowerCase().includes(normalizedQuery));
+  }, [searchQuery]);
+
+  const handleFontChange = async (fontFamily: string) => {
     setSelectedFont(fontFamily);
     canvasRef.current?.updateActiveObjectFont({ fontFamily });
 
-    // ตรวจสอบและโหลดฟอนต์ถ้ายังไม่ได้โหลด
-    if (!loadedFonts.has(fontFamily)) {
-      const fontSpec = ALL_FONTS.find(f => f.startsWith(fontFamily));
-      if (fontSpec) {
-        setLoadingAdditionalFonts(prev => [...prev, fontFamily]);
-        await loadFontDynamic(fontSpec);
-      }
+    const matchedFont = FONT_OPTIONS.find((font) => font.family === fontFamily);
+    if (matchedFont) {
+      await loadFont(matchedFont);
     }
-  }, [canvasRef, loadedFonts, loadFontDynamic]);
+  };
 
-  const handleSizeChange = useCallback((fontSize: number) => {
+  const handleSizeChange = (fontSize: number) => {
     setSelectedSize(fontSize);
     canvasRef.current?.updateActiveObjectFont({ fontSize });
-  }, [canvasRef]);
+  };
 
-  const handleWeightChange = useCallback((fontWeight: string) => {
+  const handleWeightChange = (fontWeight: string) => {
     setSelectedWeight(fontWeight);
     canvasRef.current?.updateActiveObjectFont({ fontWeight });
-  }, [canvasRef]);
+  };
 
-  const handleAlignChange = useCallback((textAlign: string) => {
+  const handleAlignChange = (textAlign: string) => {
     setSelectedAlign(textAlign);
     canvasRef.current?.updateActiveObjectFont({ textAlign: textAlign as 'left' | 'center' | 'right' });
-  }, [canvasRef]);
-
-  // Filter fonts based on search query (ค้นหาจากทุกฟอนต์)
-  const filteredFonts = ALL_FONTS
-    .map(font => font.split(':')[0])
-    .filter(font =>
-      font.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+  };
 
   return (
-    <div className="space-y-3">
-      <div className="relative">
-        <div
-          onClick={() => setIsFontDropdownOpen(!isFontDropdownOpen)}
-          className={`w-full rounded-xl px-3.5 py-2.5 flex justify-between items-center cursor-pointer border transition-all group ${
-            theme === 'dark'
-              ? 'bg-black/30 border-white/5 focus-within:border-primary/50 text-white hover:bg-black/50'
-              : 'bg-gray-50 border-gray-200 focus-within:border-primary/50 text-navy hover:bg-white'
-          }`}
-        >
-          <div className="flex items-center gap-2.5 overflow-hidden">
-            <span className="material-symbols-outlined text-[16px] text-gray-500">text_fields</span>
-            <span className="text-sm font-medium tracking-tight truncate" style={{ fontFamily: selectedFont }}>
-              {selectedFont}
-            </span>
-          </div>
+    <div className="space-y-4">
+      <div className={`rounded-2xl border px-4 py-3 ${
+        theme === 'dark' ? 'border-white/8 bg-white/[0.03]' : 'border-slate-200 bg-slate-50'
+      }`}>
+        <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+          theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+        }`}>
+          {t('typography')}
+        </p>
+
+        <div className={`mb-3 flex items-center gap-2 rounded-2xl border px-3 py-2 ${
+          theme === 'dark' ? 'border-white/10 bg-[#0b1220]' : 'border-slate-200 bg-white'
+        }`}>
+          <span className="material-symbols-outlined text-[18px] text-slate-400">search</span>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={t('search_fonts_placeholder')}
+            className={`w-full bg-transparent text-sm outline-none ${
+              theme === 'dark' ? 'text-white placeholder:text-slate-500' : 'text-slate-900 placeholder:text-slate-400'
+            }`}
+          />
         </div>
 
-        {isFontDropdownOpen && (
-          <div
-            className={`absolute z-50 w-full mt-2 rounded-xl border shadow-lg overflow-hidden ${
-              theme === 'dark'
-                ? 'bg-black/95 border-white/10'
-                : 'bg-white border-gray-200'
-            }`}
-          >
-            {/* Search Input */}
-            <div className="p-2.5 border-b border-gray-200/10">
-              <div className="relative">
-                <span className="material-symbols-outlined absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 text-[18px]">
-                  search
+        <div className="grid max-h-44 gap-2 overflow-y-auto pr-1">
+          {filteredFonts.length > 0 ? (
+            filteredFonts.map((font) => (
+              <button
+                key={font.family}
+                type="button"
+                onClick={() => void handleFontChange(font.family)}
+                className={`rounded-2xl border px-3 py-3 text-left transition-colors ${
+                  selectedFont === font.family
+                    ? 'border-primary/30 bg-primary/12 text-primary'
+                    : theme === 'dark'
+                      ? 'border-white/8 bg-white/[0.03] text-white hover:bg-white/[0.06]'
+                      : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-50'
+                }`}
+              >
+                <span className="block text-sm font-medium" style={{ fontFamily: font.family }}>
+                  {font.label}
                 </span>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={`ค้นหาฟอนต์ (${filteredFonts.length} ฟอนต์)`}
-                  className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm outline-none transition-all ${
-                    theme === 'dark'
-                      ? 'bg-black/40 border-white/10 text-white placeholder-gray-500 focus:border-primary/50'
-                      : 'bg-gray-50 border-gray-200 text-navy placeholder:text-gray-400 focus:border-primary/50'
-                  }`}
-                />
-              </div>
-            </div>
-
-            {/* Font List */}
-            <div className="max-h-64 overflow-y-auto">
-              {filteredFonts.length > 0 ? (
-                filteredFonts.slice(0, 50).map((font) => (
-                  <button
-                    key={font}
-                    type="button"
-                    onClick={() => {
-                      handleFontChange(font);
-                      setIsFontDropdownOpen(false);
-                      setSearchQuery('');
-                    }}
-                    disabled={loadingAdditionalFonts.includes(font)}
-                    className={`w-full text-left px-3 py-2 transition-all hover:opacity-80 border-b border-gray-200/10 last:border-b-0 ${
-                      selectedFont === font
-                        ? 'bg-primary text-navy font-semibold'
-                        : theme === 'dark'
-                        ? 'text-white'
-                        : 'text-navy'
-                    } ${loadingAdditionalFonts.includes(font) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    style={{ fontFamily: font }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-2 truncate">
-                        {loadingAdditionalFonts.includes(font) && (
-                          <span className="material-symbols-outlined text-[14px] animate-spin">refresh</span>
-                        )}
-                        {font}
-                      </span>
-                      <div className="flex items-center gap-1.5">
-                        {font.includes('Kanit') || font.includes('Prompt') || font.includes('Sarabun') ||
-                         font.includes('Chakra') || font.includes('Mitr') || font.includes('IBM') ||
-                         font.includes('Noto') || font.includes('Sriracha') || font.includes('Chonburi') ||
-                         font.includes('Athiti') || font.includes('Fahkwang') || font.includes('Taviraj') ||
-                         font.includes('Kodchasan') || font.includes('Pridi') || font.includes('K2D') ||
-                         font.includes('KoHo') || font.includes('Trirong') || font.includes('Charmonman') ||
-                         font.includes('Mali') || font.includes('Itim') ? (
-                          <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/20 text-navy font-semibold">
-                            TH
-                          </span>
-                        ) : null}
-                        {!loadedFonts.has(font) && !loadingAdditionalFonts.includes(font) && (
-                          <span className="material-symbols-outlined text-[14px] text-gray-500">cloud_download</span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="px-3 py-6 text-center text-sm text-gray-500">
-                  ไม่พบฟอนต์ที่ค้นหา
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="flex gap-1.5 sm:gap-2">
-        {/* Weight Dropdown */}
-        <div className="flex-1 relative min-w-0">
-          <div
-            onClick={() => setIsWeightDropdownOpen(!isWeightDropdownOpen)}
-            className={`w-full rounded-xl px-2.5 sm:px-3.5 py-2.5 flex justify-between items-center cursor-pointer border transition-all ${
-              theme === 'dark'
-                ? 'bg-black/30 border-white/5 text-white hover:bg-black/50'
-                : 'bg-gray-50 border-gray-200 text-navy hover:bg-white'
-            }`}
-          >
-            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-              <span className="material-symbols-outlined text-[14px] sm:text-[16px] text-gray-500 shrink-0">format_bold</span>
-              <span className="text-[10px] sm:text-xs font-bold tracking-tight truncate">
-                {FONT_WEIGHTS.find(w => w.value === selectedWeight)?.label || 'Regular'}
-              </span>
-            </div>
-            <span className={`material-symbols-outlined text-[16px] sm:text-[18px] text-gray-400 transition-transform shrink-0 ${isWeightDropdownOpen ? 'rotate-180' : ''}`}>
-              expand_more
-            </span>
-          </div>
-
-          {isWeightDropdownOpen && (
-            <div
-              className={`absolute z-50 w-full mt-2 rounded-xl border shadow-lg overflow-hidden ${
-                theme === 'dark'
-                  ? 'bg-black/95 border-white/10'
-                  : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="max-h-56 overflow-y-auto py-1">
-                {FONT_WEIGHTS.map((weight) => (
-                  <button
-                    key={weight.value}
-                    type="button"
-                    onClick={() => {
-                      handleWeightChange(weight.value);
-                      setIsWeightDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-2.5 sm:px-3 py-2 transition-all hover:opacity-80 text-[10px] sm:text-xs ${
-                      selectedWeight === weight.value
-                        ? 'bg-primary text-navy font-semibold'
-                        : theme === 'dark'
-                        ? 'text-white'
-                        : 'text-navy'
-                    }`}
-                    style={{ fontFamily: selectedFont, fontWeight: weight.value }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="truncate flex-1">{weight.label}</span>
-                      <span className="text-[9px] sm:text-[10px] text-gray-500 shrink-0">{weight.value}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              </button>
+            ))
+          ) : (
+            <div className={`rounded-2xl border px-4 py-3 text-sm ${
+              theme === 'dark' ? 'border-white/8 bg-white/[0.03] text-slate-400' : 'border-slate-200 bg-white text-slate-500'
+            }`}>
+              {t('no_fonts_found')}
             </div>
           )}
         </div>
+      </div>
 
-        {/* Size Input */}
-        <div className="w-16 sm:w-20 shrink-0">
-          <div className={`rounded-xl px-2.5 sm:px-3.5 py-2.5 border flex items-center justify-between ${
-            theme === 'dark'
-              ? 'bg-black/30 border-white/5 text-white'
-              : 'bg-gray-50 border-gray-200 text-navy'
+      <div className="grid grid-cols-[1fr_96px] gap-3">
+        <div className={`rounded-2xl border px-4 py-3 ${
+          theme === 'dark' ? 'border-white/8 bg-white/[0.03]' : 'border-slate-200 bg-slate-50'
+        }`}>
+          <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+            theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
           }`}>
-            <input
-              type="number"
-              value={selectedSize}
-              onChange={(e) => {
-                const val = parseInt(e.target.value);
-                if (val && val > 0) {
-                  handleSizeChange(val);
-                }
-              }}
-              className="w-10 sm:w-12 bg-transparent border-none outline-none text-xs sm:text-sm font-bold text-center"
-              min="8"
-              max="200"
-            />
-            <span className="text-[9px] sm:text-[10px] text-gray-500 font-medium shrink-0">px</span>
+            Weight
+          </p>
+          <div className="grid gap-2">
+            {FONT_WEIGHTS.map((weight) => (
+              <button
+                key={weight.value}
+                type="button"
+                onClick={() => handleWeightChange(weight.value)}
+                className={`rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                  selectedWeight === weight.value
+                    ? 'bg-primary/14 text-primary'
+                    : theme === 'dark'
+                      ? 'text-slate-300 hover:bg-white/[0.06]'
+                      : 'text-slate-600 hover:bg-white'
+                }`}
+              >
+                {weight.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Size Dropdown */}
-        <div className="w-20 relative">
-          <div
-            onClick={() => setIsSizeDropdownOpen(!isSizeDropdownOpen)}
-            className={`w-full rounded-xl px-3.5 py-2.5 flex justify-between items-center cursor-pointer border transition-all ${
-              theme === 'dark'
-                ? 'bg-black/30 border-white/5 text-white hover:bg-black/50'
-                : 'bg-gray-50 border-gray-200 text-navy hover:bg-white'
+        <div className={`rounded-2xl border px-4 py-3 ${
+          theme === 'dark' ? 'border-white/8 bg-white/[0.03]' : 'border-slate-200 bg-slate-50'
+        }`}>
+          <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+            theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+          }`}>
+            Size
+          </p>
+          <input
+            type="number"
+            value={selectedSize}
+            onChange={(event) => {
+              const nextSize = parseInt(event.target.value, 10);
+              if (!nextSize || nextSize <= 0) return;
+              handleSizeChange(nextSize);
+            }}
+            className={`mb-3 w-full bg-transparent text-2xl font-semibold outline-none ${
+              theme === 'dark' ? 'text-white' : 'text-slate-900'
             }`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[16px] text-gray-500">format_size</span>
-              <span className="text-sm font-bold tracking-tight">
-                {selectedSize}
-              </span>
-            </div>
-            <span className={`material-symbols-outlined text-[18px] text-gray-400 transition-transform ${isSizeDropdownOpen ? 'rotate-180' : ''}`}>
-              expand_more
-            </span>
+          />
+          <div className="grid gap-2">
+            {FONT_SIZES.slice(0, 5).map((size) => (
+              <button
+                key={size}
+                type="button"
+                onClick={() => handleSizeChange(size)}
+                className={`rounded-xl px-2 py-1.5 text-sm transition-colors ${
+                  selectedSize === size
+                    ? 'bg-primary/14 text-primary'
+                    : theme === 'dark'
+                      ? 'text-slate-300 hover:bg-white/[0.06]'
+                      : 'text-slate-600 hover:bg-white'
+                }`}
+              >
+                {size}
+              </button>
+            ))}
           </div>
-
-          {isSizeDropdownOpen && (
-            <div
-              className={`absolute z-50 w-full mt-2 rounded-xl border shadow-lg overflow-hidden ${
-                theme === 'dark'
-                  ? 'bg-black/95 border-white/10'
-                  : 'bg-white border-gray-200'
-              }`}
-            >
-              <div className="max-h-56 overflow-y-auto py-1">
-                {FONT_SIZES.map((size) => (
-                  <button
-                    key={size}
-                    type="button"
-                    onClick={() => {
-                      handleSizeChange(size);
-                      setIsSizeDropdownOpen(false);
-                    }}
-                    className={`w-full text-left px-3 py-2 transition-all hover:opacity-80 text-sm ${
-                      selectedSize === size
-                        ? 'bg-primary text-navy font-semibold'
-                        : theme === 'dark'
-                        ? 'text-white'
-                        : 'text-navy'
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
-      <div
-        className={`flex p-1 rounded-xl border w-full justify-between ${
-          theme === 'dark' ? 'bg-black/30 border-white/5' : 'bg-gray-50 border-gray-200'
-        }`}
-      >
-        <button
-          type="button"
-          onClick={() => handleAlignChange('left')}
-          className={`flex-1 py-1.5 rounded-lg transition-all ${
-            selectedAlign === 'left'
-              ? 'bg-primary text-navy shadow-sm'
-              : 'hover:bg-white/5 text-gray-500'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[18px]">format_align_left</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => handleAlignChange('center')}
-          className={`flex-1 py-1.5 rounded-lg transition-all ${
-            selectedAlign === 'center'
-              ? 'bg-primary text-navy shadow-sm'
-              : 'hover:bg-white/5 text-gray-500'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[18px]">format_align_center</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => handleAlignChange('right')}
-          className={`flex-1 py-1.5 rounded-lg transition-all ${
-            selectedAlign === 'right'
-              ? 'bg-primary text-navy shadow-sm'
-              : 'hover:bg-white/5 text-gray-500'
-          }`}
-        >
-          <span className="material-symbols-outlined text-[18px]">format_align_right</span>
-        </button>
+      <div className={`rounded-2xl border p-2 ${
+        theme === 'dark' ? 'border-white/8 bg-white/[0.03]' : 'border-slate-200 bg-slate-50'
+      }`}>
+        <div className="grid grid-cols-3 gap-2">
+          {TEXT_ALIGNS.map((align) => (
+            <button
+              key={align.value}
+              type="button"
+              onClick={() => handleAlignChange(align.value)}
+              className={`rounded-xl py-2.5 transition-colors ${
+                selectedAlign === align.value
+                  ? 'bg-primary text-navy'
+                  : theme === 'dark'
+                    ? 'text-slate-300 hover:bg-white/[0.06]'
+                    : 'text-slate-600 hover:bg-white'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">{align.icon}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

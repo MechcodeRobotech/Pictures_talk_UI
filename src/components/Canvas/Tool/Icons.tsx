@@ -3,12 +3,13 @@ import styled from 'styled-components';
 import { Theme } from '../../../types';
 
 const PRIMARY_COLOR = '#F8AF24';
-const DEFAULT_QUERY = 'icon';
-const SEARCH_LIMIT = 48;
-const ICON_SIZE = 24;
-const LIGHT_ICON_COLOR = '#6b7280';
-const DARK_ICON_COLOR = '#9ca3af';
+const DEFAULT_QUERY = '';
 const DRAG_DATA_KEY = 'application/x-canvas-item';
+
+interface IconAsset {
+  name: string;
+  url: string;
+}
 
 interface IconsToolProps {
   theme: Theme;
@@ -17,41 +18,31 @@ interface IconsToolProps {
 }
 
 const IconsTool: React.FC<IconsToolProps> = ({ theme, t, onSelect }) => {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
   const [query, setQuery] = useState(DEFAULT_QUERY);
-  const [icons, setIcons] = useState<string[]>([]);
+  const [icons, setIcons] = useState<IconAsset[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const iconColor = theme === 'dark' ? DARK_ICON_COLOR : LIGHT_ICON_COLOR;
-
-  const buildApiUrl = useMemo(() => {
-    return (path: string) => (apiBaseUrl ? new URL(path, apiBaseUrl).toString() : path);
-  }, [apiBaseUrl]);
-
   useEffect(() => {
-    const normalizedQuery = query.trim();
-    if (!normalizedQuery) {
-      setIcons([]);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(async () => {
+    const loadIcons = async () => {
       setIsLoading(true);
       setError(null);
+
       try {
-        const searchUrl = buildApiUrl(
-          `/api/iconify/search?query=${encodeURIComponent(normalizedQuery)}&limit=${SEARCH_LIMIT}`,
-        );
-        const response = await fetch(searchUrl, { signal: controller.signal });
+        const response = await fetch('/icon/index.json', { signal: controller.signal });
         if (!response.ok) {
-          throw new Error('iconify-search-failed');
+          throw new Error('icon-manifest-load-failed');
         }
+
         const data = await response.json();
-        const nextIcons = Array.isArray(data?.icons) ? data.icons : [];
+        const filenames = Array.isArray(data) ? data.filter((item): item is string => typeof item === 'string') : [];
+        const sortedFilenames = filenames.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        const nextIcons = sortedFilenames.map((name) => ({
+          name,
+          url: `/icon/${encodeURIComponent(name)}`,
+        }));
+
         setIcons(nextIcons);
       } catch (err) {
         if (!controller.signal.aborted) {
@@ -63,13 +54,21 @@ const IconsTool: React.FC<IconsToolProps> = ({ theme, t, onSelect }) => {
           setIsLoading(false);
         }
       }
-    }, 300);
+    };
+
+    loadIcons();
 
     return () => {
       controller.abort();
-      window.clearTimeout(timeoutId);
     };
-  }, [buildApiUrl, query]);
+  }, []);
+
+  const filteredIcons = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return icons;
+
+    return icons.filter((item) => item.name.toLowerCase().includes(normalizedQuery));
+  }, [icons, query]);
 
   return (
     <IconsToolWrap $theme={theme}>
@@ -85,31 +84,28 @@ const IconsTool: React.FC<IconsToolProps> = ({ theme, t, onSelect }) => {
       </div>
       {error && <div className="statusText">{t('upload_failed')}</div>}
       {!error && isLoading && <div className="statusText">Loading...</div>}
-      {!error && !isLoading && icons.length === 0 && (
+      {!error && !isLoading && filteredIcons.length === 0 && (
         <div className="statusText">No icons found.</div>
       )}
       <div className="iconsGrid">
-        {icons.map((name) => {
-          const iconUrl = buildApiUrl(
-            `/api/iconify/svg?name=${encodeURIComponent(name)}&width=${ICON_SIZE}&height=${ICON_SIZE}&color=${encodeURIComponent(iconColor)}`,
-          );
+        {filteredIcons.map((icon) => {
           return (
             <div
-              key={name}
+              key={icon.name}
               className="iconTile"
-              title={name}
+              title={icon.name}
               draggable
               onDragStart={(event) => {
-                const data = JSON.stringify({ type: 'icon', name, url: iconUrl });
+                const data = JSON.stringify({ type: 'icon', name: icon.name, url: icon.url });
                 event.dataTransfer.setData(DRAG_DATA_KEY, data);
                 event.dataTransfer.setData('text/plain', data);
                 event.dataTransfer.effectAllowed = 'copy';
               }}
               onClick={() => {
-                onSelect?.({ type: 'icon', name, url: iconUrl });
+                onSelect?.({ type: 'icon', name: icon.name, url: icon.url });
               }}
             >
-              <img className="iconGlyph" src={iconUrl} alt={name} loading="lazy" />
+              <img className="iconGlyph" src={icon.url} alt={icon.name} loading="lazy" />
             </div>
           );
         })}

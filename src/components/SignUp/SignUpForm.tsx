@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { useAuth, useSignUp } from '@clerk/clerk-react';
+import { useLanguage } from '../../LanguageContext';
 
 type ClerkError = {
   errors?: Array<{ message?: string; longMessage?: string; code?: string }>;
@@ -23,6 +24,7 @@ const getClerkError = (error: unknown, fallback: string) => {
 };
 
 const SignUpForm: React.FC = () => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { signUp, isLoaded, setActive } = useSignUp();
   const { isSignedIn, isLoaded: isAuthLoaded } = useAuth();
@@ -174,13 +176,13 @@ const SignUpForm: React.FC = () => {
     return (
       <Form onSubmit={handleVerifySubmit} noValidate>
         <Field>
-          <Label htmlFor="verificationCode">Verification code</Label>
+          <Label htmlFor="verificationCode">{t('signup_verify_title')}</Label>
           <InputWrap>
             <InputIcon className="material-symbols-outlined" aria-hidden="true">mail</InputIcon>
             <Input
               id="verificationCode"
               name="verificationCode"
-              placeholder="Enter the code from your email"
+              placeholder={t('forgot_code')}
               type="text"
               value={verificationCode}
               onChange={(event) => {
@@ -195,7 +197,7 @@ const SignUpForm: React.FC = () => {
         {authError && <ErrorText role="alert">{authError}</ErrorText>}
 
         <PrimaryButton type="submit" disabled={!isLoaded || isBusy || !isVerificationReady}>
-          {isSubmitting ? 'Verifying...' : 'Verify email'}
+          {isSubmitting ? t('signup_verifying') : t('signup_verify_btn')}
         </PrimaryButton>
       </Form>
     );
@@ -205,7 +207,7 @@ const SignUpForm: React.FC = () => {
     <Form onSubmit={handleSubmit} noValidate>
       <NameRow>
         <Field>
-          <Label htmlFor="firstName">First Name</Label>
+          <Label htmlFor="firstName">{t('signup_first_name')}</Label>
           <InputWrap>
             <InputIcon className="material-symbols-outlined" aria-hidden="true">person</InputIcon>
             <Input
@@ -225,7 +227,7 @@ const SignUpForm: React.FC = () => {
         </Field>
 
         <Field>
-          <Label htmlFor="lastName">Last Name</Label>
+          <Label htmlFor="lastName">{t('signup_last_name')}</Label>
           <InputWrap>
             <InputIcon className="material-symbols-outlined" aria-hidden="true">person</InputIcon>
             <Input
@@ -246,7 +248,7 @@ const SignUpForm: React.FC = () => {
       </NameRow>
 
       <Field>
-        <Label htmlFor="email">Email</Label>
+        <Label htmlFor="email">{t('email')}</Label>
         <InputWrap>
           <InputIcon className="material-symbols-outlined" aria-hidden="true">mail</InputIcon>
           <Input
@@ -266,13 +268,13 @@ const SignUpForm: React.FC = () => {
       </Field>
 
       <Field>
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t('password')}</Label>
         <InputWrap>
           <InputIcon className="material-symbols-outlined" aria-hidden="true">lock</InputIcon>
           <Input
             id="password"
             name="password"
-            placeholder="********"
+            placeholder="••••••••"
             type={showPassword ? 'text' : 'password'}
             value={formValues.password}
             onChange={handleInputChange}
@@ -284,7 +286,7 @@ const SignUpForm: React.FC = () => {
           <InputButton
             type="button"
             onClick={() => setShowPassword((prev) => !prev)}
-            aria-label={showPassword ? 'Hide password' : 'Show password'}
+            aria-label={showPassword ? t('signup_hide_password') : t('signup_show_password')}
           >
             <span className="material-symbols-outlined" aria-hidden="true">
               {showPassword ? 'visibility' : 'visibility_off'}
@@ -307,7 +309,13 @@ const SignUpForm: React.FC = () => {
             aria-describedby={shouldShowError('terms') ? 'terms-error' : undefined}
           />
           <label htmlFor="terms">
-            I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+            {t('signup_terms_intro')}
+            {' '}
+            <a href="#">{t('terms')}</a>
+            {' '}
+            {t('signup_terms_joiner')}
+            {' '}
+            <a href="#">{t('privacy')}</a>.
           </label>
         </TermsRow>
         {shouldShowError('terms') && <ErrorText id="terms-error">{errors.terms}</ErrorText>}
@@ -318,16 +326,16 @@ const SignUpForm: React.FC = () => {
           <ErrorText role="alert">{authError}</ErrorText>
           {isEmailTaken && (
             <HelperActions>
-              <span>Already have an account?</span>
-              <Link to="/login">Log in</Link>
-              <Link to="/forgot-pass">Forgot password?</Link>
+              <span>{t('signup_existing_account')}</span>
+              <Link to="/login">{t('signup_login')}</Link>
+              <Link to="/forgot-pass">{t('signup_forgot_password')}</Link>
             </HelperActions>
           )}
         </>
       )}
 
       <PrimaryButton type="submit" disabled={!isLoaded || isBusy || !isFormComplete}>
-        {isSubmitting ? 'Creating account...' : 'Sign up'}
+        {isSubmitting ? t('signup_creating') : t('signup_create_btn')}
       </PrimaryButton>
     </Form>
   );

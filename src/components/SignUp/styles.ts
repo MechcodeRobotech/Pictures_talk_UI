@@ -6,17 +6,17 @@ export const Page = styled.div`
   --navy: #0c2a4a;
   --text: #162234;
   --muted: #546170;
-  --surface: rgba(255, 255, 255, 0.92);
-  --surface-strong: #ffffff;
+  --surface: rgba(255, 255, 255, 0.78);
+  --surface-strong: rgba(255, 255, 255, 0.92);
   --border: rgba(9, 21, 36, 0.08);
-  --shadow: 0 24px 60px rgba(15, 40, 68, 0.18);
+  --shadow: 0 28px 80px rgba(15, 40, 68, 0.16);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   background:
-    radial-gradient(circle at 10% 0%, rgba(247, 176, 37, 0.25), transparent 50%),
+    radial-gradient(circle at 10% 0%, rgba(247, 176, 37, 0.22), transparent 50%),
     radial-gradient(circle at 90% 20%, rgba(27, 99, 171, 0.16), transparent 45%),
-    linear-gradient(180deg, #f7f6f2 0%, #f2f6fb 100%);
+    linear-gradient(180deg, #f4f0e8 0%, #edf3fb 100%);
   color: var(--text);
   font-family: 'Inter', 'Prompt', sans-serif;
   position: relative;
@@ -50,10 +50,10 @@ export const Page = styled.div`
   html.dark & {
     --text: #f5f7fa;
     --muted: #b4bcc8;
-    --surface: rgba(20, 26, 38, 0.92);
-    --surface-strong: #151b27;
+    --surface: rgba(20, 26, 38, 0.84);
+    --surface-strong: rgba(21, 27, 39, 0.94);
     --border: rgba(255, 255, 255, 0.08);
-    --shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+    --shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
     background:
       radial-gradient(circle at 10% 0%, rgba(247, 176, 37, 0.25), transparent 50%),
       radial-gradient(circle at 90% 20%, rgba(77, 122, 182, 0.22), transparent 45%),
@@ -177,11 +177,11 @@ export const Content = styled.div`
 export const Card = styled.section`
   width: min(560px, 100%);
   background: var(--surface);
-  border-radius: 28px;
+  border-radius: 32px;
   padding: 36px;
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(18px);
 
   @media (max-width: 640px) {
     padding: 28px 22px;
@@ -194,7 +194,7 @@ export const CardHeader = styled.div`
 
   h1 {
     font-size: 32px;
-    margin: 0 0 10px;
+    margin: 14px 0 10px;
     color: var(--navy);
     letter-spacing: -0.02em;
   }
