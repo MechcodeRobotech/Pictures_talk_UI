@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
-import { MeetingTemplateDraft, Tool, Lang, Theme } from '../types';
+import { Tool, Lang, Theme } from '../types';
 import Header from '../components/Common/Header';
 import Sidebar from '../components/Common/Sidebar';
 import ToolSidebar from '../components/Canvas/ToolSidebar';
@@ -19,6 +19,10 @@ const DRAG_DATA_KEY = 'application/x-canvas-item';
 const POPUP_OFFSET_Y_PX = -40;
 const AUTO_SAVE_DEBOUNCE_MS = 3000;
 const AUTO_SAVE_INTERVAL_MS = 30000;
+const EXPORT_OPTIONS = [
+  { id: 'png', label: 'PNG image', desc: 'Transparent-friendly raster export' },
+  { id: 'jpg', label: 'JPG image', desc: 'Compressed image for sharing' },
+] as const;
 
 interface CanvasProps {
   isDarkMode: boolean;
@@ -26,7 +30,8 @@ interface CanvasProps {
 }
 
 interface CanvasLocationState {
-  meetingTemplateDraft?: MeetingTemplateDraft;
+  initialCanvasWidth?: number;
+  initialCanvasHeight?: number;
 }
 
 interface TemplatePreviewBlock {
@@ -72,19 +77,6 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const location = useLocation();
   const locationState = location.state as CanvasLocationState | null;
 
-  const pendingMeetingDraft = React.useMemo<MeetingTemplateDraft | null>(() => {
-    if (locationState?.meetingTemplateDraft) {
-      return locationState.meetingTemplateDraft;
-    }
-
-    try {
-      const rawDraft = localStorage.getItem('meetingTemplateDraft');
-      return rawDraft ? (JSON.parse(rawDraft) as MeetingTemplateDraft) : null;
-    } catch {
-      return null;
-    }
-  }, [locationState]);
-
   const [activeTool, setActiveTool] = useState<Tool | null>(null);
   const [showProperties, setShowProperties] = useState<boolean>(() => {
     const saved = localStorage.getItem('showProperties');
@@ -110,8 +102,8 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const savedTextColor = localStorage.getItem('textColor');
   const savedStrokeColor = localStorage.getItem('strokeColor');
 
-  const [canvasWidth, setCanvasWidth] = useState<number>(pendingMeetingDraft?.canvasWidth ?? (savedCanvasWidth ? parseInt(savedCanvasWidth) : 900));
-  const [canvasHeight, setCanvasHeight] = useState<number>(pendingMeetingDraft?.canvasHeight ?? (savedCanvasHeight ? parseInt(savedCanvasHeight) : 506));
+  const [canvasWidth, setCanvasWidth] = useState<number>(locationState?.initialCanvasWidth ?? (savedCanvasWidth ? parseInt(savedCanvasWidth) : 900));
+  const [canvasHeight, setCanvasHeight] = useState<number>(locationState?.initialCanvasHeight ?? (savedCanvasHeight ? parseInt(savedCanvasHeight) : 506));
   const [backgroundColor, setBackgroundColor] = useState<string>(isDarkMode ? '#1e1e1e' : '#ffffff');
 
   const [strokeColor, setStrokeColor] = useState<string>(savedStrokeColor || (isDarkMode ? '#f8fafc' : '#0f172a'));
@@ -125,6 +117,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   } | null>(null);
   const [textColor, setTextColor] = useState<string>(savedTextColor || (isDarkMode ? '#ffffff' : '#0f172a'));
   const [shapeSearch, setShapeSearch] = useState<string>('');
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   const shapeCategories = {
     basic: {
@@ -209,6 +202,7 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
   const sidebarRef = useRef<HTMLElement>(null);
   const toolRefs = useRef<{ [key in Tool]?: HTMLButtonElement | null }>({});
   const canvasStageRef = useRef<CanvasStageHandle | null>(null);
+  const exportMenuRef = useRef<HTMLDivElement | null>(null);
 
   const theme: Theme = isDarkMode ? 'dark' : 'light';
   const lang: Lang = globalLang as Lang;
@@ -418,6 +412,18 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     };
   }, [activeTool]);
 
+  useEffect(() => {
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (target && exportMenuRef.current && !exportMenuRef.current.contains(target)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, []);
+
   const toolsList = [
     { id: Tool.Shapes, icon: 'shapes', title: 'shapes_title', desc: 'shapes_desc' },
     { id: Tool.Connect, icon: 'cable', title: 'connect_title', desc: 'connect_desc' },
@@ -549,6 +555,11 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
     canvasStageRef.current?.updateActiveObjectFont({ fill: color });
     scheduleAutoSave();
   }, [scheduleAutoSave]);
+
+  const handleExport = useCallback((format: (typeof EXPORT_OPTIONS)[number]['id']) => {
+    canvasStageRef.current?.exportCanvas(format);
+    setIsExportMenuOpen(false);
+  }, []);
 
   const filteredShapes = () => {
     const category = shapeCategories[selectedCategory as keyof typeof shapeCategories];
@@ -790,20 +801,113 @@ const Canvas: React.FC<CanvasProps> = ({ isDarkMode, toggleTheme }) => {
 
           {renderPopupContent()}
 
-          <CanvasStage
-            ref={canvasStageRef}
-            theme={theme}
-            t={t}
-            activeTool={activeTool}
-            pencilColor={pencilColor}
-            pencilStroke={pencilStroke}
-            showProperties={showProperties}
-            onToggleProperties={() => setShowProperties(!showProperties)}
-            canvasWidth={canvasWidth}
-            canvasHeight={canvasHeight}
-            backgroundColor={backgroundColor}
-            onSelectionChange={handleSelectionChange}
-          />
+          <div className="flex min-w-0 flex-1 flex-col gap-4">
+            <div
+              className={`rounded-[28px] border px-5 py-4 shadow-[0_20px_50px_rgba(15,23,42,0.08)] ${
+                theme === 'dark'
+                  ? 'border-white/10 bg-white/[0.04]'
+                  : 'border-white/70 bg-white/85'
+              }`}
+            >
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="min-w-0">
+                  <p className={`text-[10px] font-semibold uppercase tracking-[0.24em] ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                    Visual workspace
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-3">
+                    <h1 className={`text-2xl font-semibold tracking-tight ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                      Creative Canvas
+                    </h1>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${theme === 'dark' ? 'bg-white/[0.06] text-slate-300' : 'bg-slate-100 text-slate-600'}`}>
+                      {canvasWidth} x {canvasHeight}px
+                    </span>
+                  </div>
+                  <p className={`mt-2 max-w-2xl text-sm leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Build visual summaries with shapes, text, icons, and reusable layouts.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className={`rounded-full px-3 py-1.5 text-xs font-semibold ${theme === 'dark' ? 'bg-amber-400/10 text-amber-300' : 'bg-amber-100 text-amber-700'}`}>
+                    Canvas workspace
+                  </div>
+
+                  <div className="relative" ref={exportMenuRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsExportMenuOpen((prev) => !prev)}
+                      className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-navy shadow-[0_16px_30px_rgba(248,175,36,0.28)] transition-transform hover:-translate-y-0.5"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">download</span>
+                      Export
+                      <span className={`material-symbols-outlined text-[18px] transition-transform ${isExportMenuOpen ? 'rotate-180' : ''}`}>
+                        expand_more
+                      </span>
+                    </button>
+
+                    {isExportMenuOpen && (
+                      <div
+                        className={`absolute right-0 top-full z-40 mt-3 w-72 overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-xl ${
+                          theme === 'dark'
+                            ? 'border-white/10 bg-[#101828]/95'
+                            : 'border-slate-200 bg-white/95'
+                        }`}
+                      >
+                        <div className={`border-b px-4 py-3 ${theme === 'dark' ? 'border-white/10' : 'border-slate-200'}`}>
+                          <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                            Export canvas
+                          </p>
+                        </div>
+                        <div className="p-2">
+                          {EXPORT_OPTIONS.map((option) => (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => handleExport(option.id)}
+                              className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors ${
+                                theme === 'dark' ? 'hover:bg-white/[0.06]' : 'hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className={`mt-0.5 inline-flex size-9 items-center justify-center rounded-xl ${
+                                theme === 'dark' ? 'bg-white/[0.06] text-amber-300' : 'bg-amber-50 text-amber-600'
+                              }`}>
+                                <span className="material-symbols-outlined text-[18px]">
+                                  {option.id === 'svg' ? 'polyline' : option.id === 'json' ? 'data_object' : 'image'}
+                                </span>
+                              </span>
+                              <span className="min-w-0">
+                                <span className={`block text-sm font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                                  {option.label}
+                                </span>
+                                <span className={`mt-0.5 block text-xs leading-5 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                                  {option.desc}
+                                </span>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <CanvasStage
+              ref={canvasStageRef}
+              theme={theme}
+              t={t}
+              activeTool={activeTool}
+              pencilColor={pencilColor}
+              pencilStroke={pencilStroke}
+              showProperties={showProperties}
+              onToggleProperties={() => setShowProperties(!showProperties)}
+              canvasWidth={canvasWidth}
+              canvasHeight={canvasHeight}
+              backgroundColor={backgroundColor}
+              onSelectionChange={handleSelectionChange}
+            />
+          </div>
 
           <PropertiesPanel
             theme={theme}

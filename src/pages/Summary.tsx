@@ -2,7 +2,6 @@ import React from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 import Keywords, { fallbackKeywords, keywordPalette, KeywordItem } from '../components/Summary/Keywords';
-import { MeetingTemplateDraft } from '../types';
 
 const SUMMARY_SECTION_MAX_CARDS = 3;
 const SUMMARY_TITLE_WORD_LIMIT = 6;
@@ -36,7 +35,6 @@ const DEFAULT_SUMMARY_TEXT = [
   'The meeting concluded with a follow-up in the next 2 weeks to evaluate progress and adjust plans if necessary.',
 ].join('\n\n');
 
-const CANVAS_DRAFT_STORAGE_KEY = 'meetingTemplateDraft';
 const CANVAS_SIZE_PRESETS = [
   { id: 'presentation', label: 'Presentation', size: '960 x 540', width: 960, height: 540 },
   { id: 'classic', label: 'Classic', size: '800 x 600', width: 800, height: 600 },
@@ -457,7 +455,7 @@ const Summary: React.FC = () => {
     });
   }, [displayKeywords, formattedDisplayText]);
 
-  const canvasDraft = React.useMemo<MeetingTemplateDraft | null>(() => {
+  const canvasDraft = React.useMemo(() => {
     const cleanSummaryText = formattedDisplayText.trim();
     if (!cleanSummaryText) return null;
 
@@ -514,16 +512,10 @@ const Summary: React.FC = () => {
     if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
       return;
     }
-    const nextDraft: MeetingTemplateDraft = {
-      ...canvasDraft,
-      canvasWidth: width,
-      canvasHeight: height,
-    };
-
-    localStorage.setItem(CANVAS_DRAFT_STORAGE_KEY, JSON.stringify(nextDraft));
     navigate('/canvas', {
       state: {
-        meetingTemplateDraft: nextDraft,
+        initialCanvasWidth: width,
+        initialCanvasHeight: height,
       },
     });
     setIsCanvasSizeDialogOpen(false);

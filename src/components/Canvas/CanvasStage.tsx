@@ -31,6 +31,7 @@ export type CanvasStageHandle = {
   addIconAtCenter: (payload: DragPayload & { type: 'icon' }) => void;
   addShapeAtCenter: (payload: DragPayload & { type: 'shape' }) => void;
   applyTemplate: (templateId: string) => void;
+  exportCanvas: (format: 'png' | 'jpg' | 'svg' | 'json') => boolean;
   bringSelectionForward: () => void;
   sendSelectionBackward: () => void;
   bringSelectionToFront: () => void;
@@ -317,6 +318,7 @@ const TEMPLATE_PRESETS: TemplatePreset[] = [
   },
 ];
 
+
 const createSvgIcon = (svg: string) => {
   const image = new Image();
   image.src = `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
@@ -383,6 +385,15 @@ const registerCanvasControls = () => {
 const applyCustomControlsToObject = (object: fabric.Object) => {
   object.controls = createCustomControls();
   object.setCoords();
+};
+
+const downloadFile = (filename: string, href: string) => {
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
   const buildPolygonPoints = (sides: number, radius: number) => {
@@ -748,6 +759,45 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
     applyTemplate: (templateId) => {
       applyTemplateToCanvas(templateId);
       saveCanvasToStorage();
+    },
+    exportCanvas: (format) => {
+      const canvas = fabricRef.current;
+      if (!canvas) return false;
+
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      const baseName = `canvas-${timestamp}`;
+
+      try {
+        if (format === 'svg') {
+          const svgMarkup = canvas.toSVG();
+          const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          downloadFile(`${baseName}.svg`, url);
+          setTimeout(() => URL.revokeObjectURL(url), 0);
+          return true;
+        }
+
+        if (format === 'json') {
+          const json = JSON.stringify(canvas.toObject(['controls']), null, 2);
+          const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          downloadFile(`${baseName}.json`, url);
+          setTimeout(() => URL.revokeObjectURL(url), 0);
+          return true;
+        }
+
+        const mimeFormat = format === 'jpg' ? 'jpeg' : 'png';
+        const dataUrl = canvas.toDataURL({
+          format: mimeFormat,
+          quality: 1,
+          multiplier: 2,
+        });
+        downloadFile(`${baseName}.${format}`, dataUrl);
+        return true;
+      } catch (error) {
+        console.error('Error exporting canvas:', error);
+        return false;
+      }
     },
     bringSelectionForward: () => {
       const canvas = fabricRef.current;
@@ -1269,7 +1319,9 @@ const CanvasStage = React.forwardRef<CanvasStageHandle, CanvasStageProps>(({
           </span>
         </button>
       </div>
-      <div className="flex-1 relative overflow-auto flex items-start justify-center p-12">
+      <div
+        className="flex-1 relative overflow-auto flex items-start justify-center p-12"
+      >
         <div
           ref={wrapperRef}
           onDragOver={handleDragOver}
