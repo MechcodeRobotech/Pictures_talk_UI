@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RecentWorkItem } from '../types';
@@ -204,9 +203,9 @@ const Home: React.FC = () => {
       const data = await new Promise<{ meeting_id?: number }>((resolve, reject) => {
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('title', file.name); // Use filename as title
-        formData.append('user_id', '1'); // TODO: replace with authenticated user id.
-        formData.append('custom_language', 'th'); // Set language to Thai for Fireflies processing
+        formData.append('title', file.name);
+        formData.append('user_id', '1');
+        formData.append('custom_language', 'th');
         if (userPlan) {
           formData.append('user_plan', userPlan);
         }
@@ -301,72 +300,92 @@ const Home: React.FC = () => {
   ];
 
   return (
-    <div className="max-w-6xl mx-auto animate-fadeIn">
-      <div className="mb-10">
-        <h2 className="text-3xl font-extrabold text-secondary dark:text-white tracking-tight">{t('welcome_user')}</h2>
-        <p className="text-slate-500 dark:text-slate-400">{t('home_desc')}</p>
-      </div>
+    <div className="mx-auto max-w-6xl animate-fadeIn">
+      <section className="app-panel-strong relative overflow-hidden rounded-[32px] px-6 py-8 md:px-10 md:py-10">
+        <div className="absolute inset-0 app-grid-bg opacity-40" aria-hidden="true" />
+        <div className="absolute -right-16 top-0 h-48 w-48 rounded-full bg-primary/20 blur-3xl" aria-hidden="true" />
+        <div className="absolute -left-16 bottom-0 h-56 w-56 rounded-full bg-sky-400/20 blur-3xl" aria-hidden="true" />
 
-      <section className="bg-surface-light dark:bg-surface-dark rounded-3xl shadow-sm border border-gray-100 dark:border-gray-800 p-8 md:p-12 text-center mb-12 relative overflow-hidden group hover:border-primary/30 transition-all">
-        <div className="absolute top-0 left-0 w-32 h-32 bg-yellow-100 dark:bg-yellow-900/10 rounded-full -translate-x-10 -translate-y-10 opacity-50 blur-2xl"></div>
-        <div className="absolute bottom-0 right-0 w-40 h-40 bg-blue-50 dark:bg-blue-900/10 rounded-full translate-x-10 translate-y-10 opacity-50 blur-2xl"></div>
-        
-        <h3 className="text-2xl md:text-3xl font-bold text-secondary dark:text-white mb-10 relative z-10">{t('upload_title')}</h3>
-        
-        <div className="flex justify-center space-x-10 md:space-x-20 mb-12 relative z-10">
-          <VideoButton
-            label={t('video')}
-            onFileSelect={handleFileSelect}
-            onValidationError={handleValidationError}
-          />
-          <AudioButton
-            label={t('audio')}
-            onFileSelect={handleFileSelect}
-            onValidationError={handleValidationError}
-          />
-        </div>
+        <div className="relative z-10 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div>
+            <span className="app-kicker">{t('home_badge')}</span>
+            <h2 className="mt-5 text-4xl font-black tracking-tight text-slate-900 dark:text-white md:text-5xl">
+              {t('welcome_user')}
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 md:text-lg">
+              {t('home_desc')}
+            </p>
 
-        <div className="max-w-md mx-auto relative z-10">
-          <DragDropUpload
-            helperText={t('drag_drop')}
-            selectedFileName={selectedFileName}
-            onFileSelect={handleFileSelect}
-            onValidationError={handleValidationError}
-            onClear={handleClearFile}
-          />
-          {uploadError && (
-            <p className="mt-3 text-sm text-red-500" role="alert">
-              {uploadError}
-            </p>
-          )}
-          {summaryCheckStatus === 'waiting' && summaryCheckMessage && (
-            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400" role="status">
-              {summaryCheckMessage}
-            </p>
-          )}
-          {summaryCheckStatus === 'error' && summaryCheckMessage && (
-            <p className="mt-3 text-sm text-red-500" role="alert">
-              {summaryCheckMessage}
-            </p>
-          )}
-          <UploadProgress
-            percent={selectedFile ? uploadPercent : 0}
-            statusLabel={uploadPercent === 100 ? t('ready') : t('not_ready')}
-            file={selectedFile}
-            fileName={selectedFileName}
-            isExporting={isExporting}
-            onExport={handleExport}
-          />
+            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+              {[t('home_metric_speed'), t('home_metric_canvas'), t('home_metric_bilingual')].map((item, index) => (
+                <div key={item} className="app-stat-card rounded-[24px] p-4">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">0{index + 1}</p>
+                  <p className="mt-3 text-sm font-semibold leading-6 text-slate-700 dark:text-slate-200">{item}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="app-panel rounded-[30px] p-6 md:p-7 text-center">
+            <div className="mx-auto mb-8 flex max-w-sm justify-center gap-4 sm:gap-6">
+              <VideoButton
+                label={t('video')}
+                onFileSelect={handleFileSelect}
+                onValidationError={handleValidationError}
+              />
+              <AudioButton
+                label={t('audio')}
+                onFileSelect={handleFileSelect}
+                onValidationError={handleValidationError}
+              />
+            </div>
+
+            <h3 className="text-2xl font-black tracking-tight text-slate-900 dark:text-white">{t('upload_title')}</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t('drag_drop')}</p>
+
+            <div className="mx-auto mt-6 max-w-md">
+              <DragDropUpload
+                helperText={t('drag_drop')}
+                selectedFileName={selectedFileName}
+                onFileSelect={handleFileSelect}
+                onValidationError={handleValidationError}
+                onClear={handleClearFile}
+              />
+              {uploadError && (
+                <p className="mt-3 text-sm text-red-500" role="alert">
+                  {uploadError}
+                </p>
+              )}
+              {summaryCheckStatus === 'waiting' && summaryCheckMessage && (
+                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400" role="status">
+                  {summaryCheckMessage}
+                </p>
+              )}
+              {summaryCheckStatus === 'error' && summaryCheckMessage && (
+                <p className="mt-3 text-sm text-red-500" role="alert">
+                  {summaryCheckMessage}
+                </p>
+              )}
+              <UploadProgress
+                percent={selectedFile ? uploadPercent : 0}
+                statusLabel={uploadPercent === 100 ? t('ready') : t('not_ready')}
+                file={selectedFile}
+                fileName={selectedFileName}
+                isExporting={isExporting}
+                onExport={handleExport}
+              />
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="pb-12">
+      <section className="pb-12 pt-10">
         <div className="flex justify-between items-end mb-8">
           <div>
             <h3 className="text-xl font-bold text-secondary dark:text-white">{t('recent_work')}</h3>
             <p className="text-sm text-slate-500 dark:text-slate-400">{t('recent_work_desc')}</p>
           </div>
-          <button className="text-sm font-bold text-primary hover:text-primary-hover transition-colors flex items-center">
+          <button className="flex items-center text-sm font-bold text-primary hover:text-primary-hover transition-colors">
             {t('view_all')} <span className="material-icons-round ml-1 text-sm">arrow_forward</span>
           </button>
         </div>
@@ -375,7 +394,7 @@ const Home: React.FC = () => {
           {recentWork.map((item) => (
             <div 
               key={item.id} 
-              className="bg-surface-light dark:bg-surface-dark rounded-2xl p-4 shadow-sm border border-transparent hover:border-gray-200 dark:hover:border-gray-700 hover:shadow-xl transition-all cursor-pointer group"
+              className="app-panel rounded-[26px] p-4 border border-transparent hover:border-primary/20 hover:shadow-[0_24px_48px_rgba(15,23,42,0.12)] transition-all cursor-pointer group"
             >
               <div className={`h-32 rounded-xl bg-gradient-to-br ${item.gradient} mb-4 flex items-center justify-center group-hover:scale-[1.02] transition-transform`}>
                 <span className="material-icons-round text-secondary/20 dark:text-white/20 text-5xl">{item.icon}</span>

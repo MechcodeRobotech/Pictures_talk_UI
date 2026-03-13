@@ -17,6 +17,19 @@ export interface TemplateItem {
   isNew?: boolean;
 }
 
+export interface MeetingTemplateDraft {
+  draftId: string;
+  sourceId?: string;
+  fileName: string;
+  title: string;
+  subtitle: string;
+  dateLabel: string;
+  templateId: string;
+  summaryText: string;
+  sections: string[];
+  keywords: string[];
+}
+
 export enum Tool {
   Canvas = 'canvas',
   Shapes = 'shapes',

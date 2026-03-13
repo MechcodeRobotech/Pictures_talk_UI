@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "icons:manifest": "node scripts/generate-icon-manifest.mjs",
     "dev": "vite",
+    "prebuild": "npm run icons:manifest",
     "build": "vite build",
     "preview": "vite preview"
   },

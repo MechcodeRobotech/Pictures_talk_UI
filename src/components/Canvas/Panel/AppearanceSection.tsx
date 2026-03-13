@@ -29,29 +29,62 @@ const AppearanceSection: React.FC<AppearanceSectionProps> = ({
 }) => {
   return (
     <div className="space-y-3">
-      <BackgroundColorPicker
-        theme={theme}
-        t={t}
-        currentColor={backgroundColor}
-        onColorChange={onBackgroundColorChange}
-      />
-
-      {onTextColorChange && (
-        <TextColorPicker
-          theme={theme}
-          t={t}
-          currentColor={textColor ?? (theme === 'dark' ? '#ffffff' : '#000000')}
-          onColorChange={onTextColorChange}
-        />
+      {!hasSelection && (
+        <div className={`rounded-2xl border px-4 py-3 ${
+          theme === 'dark' ? 'border-white/8 bg-white/[0.02]' : 'border-slate-200 bg-slate-50/70'
+        }`}>
+          <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+            theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+          }`}>
+            {t('canvas_background_label')}
+          </p>
+          <BackgroundColorPicker
+            theme={theme}
+            t={t}
+            currentColor={backgroundColor}
+            onColorChange={onBackgroundColorChange}
+          />
+        </div>
       )}
 
-      {onShapeFillChange && (
-        <ShapeColorPicker
-          theme={theme}
-          t={t}
-          currentColor={strokeColor ?? (theme === 'dark' ? '#ffffff' : '#000000')}
-          onColorChange={onShapeFillChange}
-        />
+      {hasSelection && (
+        <div className="space-y-3">
+          {onTextColorChange && (
+            <div className={`rounded-2xl border px-4 py-3 ${
+              theme === 'dark' ? 'border-white/8 bg-white/[0.02]' : 'border-slate-200 bg-slate-50/70'
+            }`}>
+              <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+              }`}>
+                {t('text_color')}
+              </p>
+              <TextColorPicker
+                theme={theme}
+                t={t}
+                currentColor={textColor ?? (theme === 'dark' ? '#ffffff' : '#000000')}
+                onColorChange={onTextColorChange}
+              />
+            </div>
+          )}
+
+          {onShapeFillChange && (
+            <div className={`rounded-2xl border px-4 py-3 ${
+              theme === 'dark' ? 'border-white/8 bg-white/[0.02]' : 'border-slate-200 bg-slate-50/70'
+            }`}>
+              <p className={`mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                theme === 'dark' ? 'text-slate-500' : 'text-slate-400'
+              }`}>
+                {t('shape_color')}
+              </p>
+              <ShapeColorPicker
+                theme={theme}
+                t={t}
+                currentColor={strokeColor ?? (theme === 'dark' ? '#ffffff' : '#000000')}
+                onColorChange={onShapeFillChange}
+              />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

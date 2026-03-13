@@ -61,13 +61,13 @@ const CommonColorPicker: React.FC<CommonColorPickerProps> = ({
   }, [isPickerOpen, currentColor, pendingColor]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <button
             type="button"
             onClick={() => setIsPickerOpen(!isPickerOpen)}
-            className={`size-8 sm:size-10 rounded-xl border-2 shadow-lg flex items-center justify-center overflow-hidden transition-all hover:scale-105 shrink-0 ${
+            className={`flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border shadow-sm transition-colors ${
               isPickerOpen
                 ? 'ring-2 ring-primary/50'
                 : theme === 'dark'
@@ -77,14 +77,14 @@ const CommonColorPicker: React.FC<CommonColorPickerProps> = ({
           >
             <div className="size-full" style={{ backgroundColor: currentColor }}></div>
           </button>
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className={`text-xs sm:text-sm font-semibold truncate ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
+          <div className="flex min-w-0 flex-1 flex-col">
+            <span className={`truncate text-[12px] font-semibold ${theme === 'dark' ? 'text-gray-200' : 'text-gray-700'}`}>
               {label}
             </span>
             <button
               type="button"
               onClick={() => setIsPickerOpen(!isPickerOpen)}
-              className={`text-[9px] sm:text-[10px] font-mono hover:text-primary transition-colors text-left truncate ${
+              className={`truncate text-left font-mono text-[10px] transition-colors hover:text-primary ${
                 theme === 'dark' ? 'text-gray-500' : 'text-gray-500'
               }`}
             >
@@ -95,7 +95,7 @@ const CommonColorPicker: React.FC<CommonColorPickerProps> = ({
         <button
           type="button"
           onClick={() => setIsPickerOpen(!isPickerOpen)}
-          className={`p-1.5 sm:p-2 rounded-lg transition-all shrink-0 ${
+          className={`shrink-0 rounded-lg p-1.5 transition-all ${
             isPickerOpen
               ? 'bg-primary/20 text-primary'
               : theme === 'dark'
@@ -103,22 +103,22 @@ const CommonColorPicker: React.FC<CommonColorPickerProps> = ({
                 : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-600'
           }`}
         >
-          <span className="material-symbols-outlined text-[16px] sm:text-[18px]">
+          <span className="material-symbols-outlined text-[16px]">
             {isPickerOpen ? 'close' : 'expand_more'}
           </span>
         </button>
       </div>
 
       {!isPickerOpen && (
-        <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+        <div className="grid grid-cols-7 gap-1.5">
           {PRESET_COLORS.slice(0, 6).map((color) => (
             <button
               key={color}
               type="button"
               onClick={() => onColorChange(color)}
-              className={`size-5 sm:size-7 rounded-md border-2 transition-all hover:scale-110 flex-shrink-0 ${
+              className={`size-6 rounded-md border transition-all hover:scale-105 flex-shrink-0 ${
                 isColorSelected(color)
-                  ? 'border-primary ring-2 ring-primary/30 scale-110'
+                  ? 'border-primary ring-2 ring-primary/30'
                   : theme === 'dark'
                     ? 'border-white/10 hover:border-white/30'
                     : 'border-gray-200 hover:border-gray-400'
@@ -132,9 +132,9 @@ const CommonColorPicker: React.FC<CommonColorPickerProps> = ({
               key={color}
               type="button"
               onClick={() => onColorChange(color)}
-              className={`size-5 sm:size-7 rounded-md border-2 transition-all hover:scale-110 flex-shrink-0 ${
+              className={`size-6 rounded-md border transition-all hover:scale-105 flex-shrink-0 ${
                 isColorSelected(color)
-                  ? 'border-primary ring-2 ring-primary/30 scale-110'
+                  ? 'border-primary ring-2 ring-primary/30'
                   : theme === 'dark'
                     ? 'border-white/10 hover:border-white/30'
                     : 'border-gray-200 hover:border-gray-400'
@@ -146,13 +146,13 @@ const CommonColorPicker: React.FC<CommonColorPickerProps> = ({
           <button
             type="button"
             onClick={() => setIsPickerOpen(true)}
-            className={`size-5 sm:size-7 rounded-md border-2 transition-all hover:scale-110 flex-shrink-0 flex items-center justify-center ${
+            className={`flex size-6 flex-shrink-0 items-center justify-center rounded-md border transition-all hover:scale-105 ${
               theme === 'dark'
                 ? 'border-white/10 hover:border-white/30 bg-white/5 hover:bg-white/10'
                 : 'border-gray-200 hover:border-gray-400 bg-gray-50 hover:bg-gray-100'
             }`}
           >
-            <span className="material-symbols-outlined text-[14px] sm:text-[16px] text-gray-500">add</span>
+            <span className="material-symbols-outlined text-[14px] text-gray-500">add</span>
           </button>
         </div>
       )}
@@ -160,20 +160,20 @@ const CommonColorPicker: React.FC<CommonColorPickerProps> = ({
       {isPickerOpen && (
         <div
           ref={pickerRef}
-          className={`relative rounded-xl border shadow-xl overflow-hidden ${
+          className={`relative overflow-hidden rounded-xl border shadow-xl ${
             theme === 'dark' ? 'bg-black/50 border-white/10' : 'bg-gray-50 border-gray-200'
           }`}
         >
-          <div className="p-2.5 sm:p-3">
-            <div className="space-y-2.5 sm:space-y-3">
+          <div className="p-2.5">
+            <div className="space-y-2.5">
               <ColorPicker value={pendingColor ?? currentColor} onChange={handlePickerChange} disabledAlpha />
-              <div className="flex gap-1.5 sm:gap-2">
+              <div className="flex gap-2">
                 <input
                   type="text"
                   value={(pendingColor ?? currentColor).toUpperCase()}
                   onChange={(event) => setPendingColor(event.target.value)}
                   placeholder="#FFFFFF"
-                  className={`flex-1 rounded-lg border px-2 sm:px-3 py-1.5 sm:py-2 text-[10px] sm:text-xs font-mono ${
+                  className={`flex-1 rounded-lg border px-2.5 py-2 text-[11px] font-mono ${
                     theme === 'dark'
                       ? 'border-white/10 bg-black/40 text-gray-200 placeholder:text-gray-500 focus:border-primary/50'
                       : 'border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-primary/50'
@@ -182,7 +182,7 @@ const CommonColorPicker: React.FC<CommonColorPickerProps> = ({
                 <button
                   type="button"
                   onClick={handleConfirmColor}
-                  className="px-2.5 sm:px-4 rounded-lg bg-primary py-1.5 sm:py-2 text-[10px] sm:text-xs font-semibold text-navy hover:opacity-90 transition-opacity whitespace-nowrap shrink-0"
+                  className="shrink-0 whitespace-nowrap rounded-lg bg-primary px-3 py-2 text-[11px] font-semibold text-navy transition-opacity hover:opacity-90"
                 >
                   {t('apply')}
                 </button>
@@ -200,9 +200,9 @@ export const BackgroundColorPicker: React.FC<Omit<CommonColorPickerProps, 'label
 );
 
 export const TextColorPicker: React.FC<Omit<CommonColorPickerProps, 'label'>> = (props) => (
-  <CommonColorPicker {...props} label={props.t('Text color')} />
+  <CommonColorPicker {...props} label={props.t('text_color')} />
 );
 
 export const ShapeColorPicker: React.FC<Omit<CommonColorPickerProps, 'label'>> = (props) => (
-  <CommonColorPicker {...props} label={props.t('Shape color')} />
+  <CommonColorPicker {...props} label={props.t('shape_color')} />
 );

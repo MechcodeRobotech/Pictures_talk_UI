@@ -15,7 +15,10 @@ const TEXT_OPTIONS = [
 ];
 
 const TextTool: React.FC<TextToolProps> = ({ theme, t, onDragStart, onSelect }) => (
-  <div className="space-y-2 pt-1">
+  <div className="space-y-3 pt-1">
+    <p className={`mb-1 text-sm leading-6 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+      {t('canvas_text_helper')}
+    </p>
     {TEXT_OPTIONS.map((item, idx) => (
       <button
         key={item.label}
@@ -36,14 +39,16 @@ const TextTool: React.FC<TextToolProps> = ({ theme, t, onDragStart, onSelect }) 
             weight: item.weight,
           })
         }
-        className={`w-full text-left p-3 rounded-xl hover:bg-white/5 flex flex-col transition-colors border border-transparent hover:border-white/10 cursor-grab active:cursor-grabbing ${
-          theme === 'dark' ? 'text-white' : 'text-navy'
+        className={`flex w-full cursor-grab flex-col rounded-[22px] border p-4 text-left transition-all active:cursor-grabbing ${
+          theme === 'dark'
+            ? 'border-white/10 bg-white/[0.03] text-white hover:border-white/20 hover:bg-white/[0.06]'
+            : 'border-slate-200 bg-slate-50 text-navy hover:border-slate-300 hover:bg-white hover:shadow-[0_12px_24px_rgba(15,23,42,0.08)]'
         }`}
       >
-        <span className={`text-${idx === 0 ? 'lg' : idx === 1 ? 'base' : 'sm'} font-bold`}>
+        <span className={`font-semibold ${idx === 0 ? 'text-xl' : idx === 1 ? 'text-lg' : 'text-sm'}`}>
           {t(item.label)}
         </span>
-        <span className="text-[10px] text-gray-500 uppercase mt-1">{item.size}px</span>
+        <span className={`mt-2 text-[11px] ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>{item.size}px</span>
       </button>
     ))}
   </div>

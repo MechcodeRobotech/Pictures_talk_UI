@@ -46,11 +46,11 @@ const AppContent: React.FC<{ isDarkMode: boolean; toggleTheme: () => void }> = (
   }
 
   return (
-    <div className="h-screen font-display flex flex-col bg-background-light dark:bg-background-dark transition-colors duration-300 overflow-hidden">
+    <div className="app-shell h-screen font-display flex flex-col bg-background-light dark:bg-background-dark transition-colors duration-300 overflow-hidden">
       <Header toggleTheme={toggleTheme} isDarkMode={isDarkMode} />
-      <div className="flex-1 flex flex-col md:flex-row min-w-0 overflow-hidden">
+      <div className="app-shell flex-1 flex flex-col md:flex-row min-w-0 overflow-hidden">
         <Sidebar isDarkMode={isDarkMode} />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
+        <main className="flex-1 overflow-y-auto px-4 pb-6 pt-4 md:px-8 md:pb-8 md:pt-6">
           <Routes>
             <Route path="/" element={<Login isDarkMode={isDarkMode} toggleTheme={toggleTheme} />} />
             <Route path="/login" element={<Login isDarkMode={isDarkMode} toggleTheme={toggleTheme} />} />

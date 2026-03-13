@@ -1,7 +1,8 @@
 import React from 'react';
-import { useLocation, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../LanguageContext';
 import Keywords, { fallbackKeywords, keywordPalette, KeywordItem } from '../components/Summary/Keywords';
+import { MeetingTemplateDraft } from '../types';
 
 const SUMMARY_SECTION_MAX_CARDS = 3;
 const SUMMARY_TITLE_WORD_LIMIT = 6;
@@ -35,6 +36,8 @@ const DEFAULT_SUMMARY_TEXT = [
   'The meeting concluded with a follow-up in the next 2 weeks to evaluate progress and adjust plans if necessary.',
 ].join('\n\n');
 
+const CANVAS_DRAFT_STORAGE_KEY = 'meetingTemplateDraft';
+
 type SummaryLocationState = {
   fileName?: string;
   meetingId?: number;
@@ -63,8 +66,16 @@ const formatUploadedDateLabel = (timestamp?: number) => {
   });
 };
 
+const buildCanvasTemplateId = (sectionCount: number) => {
+  if (sectionCount <= 2) return 'l1';
+  if (sectionCount === 3) return 'l2';
+  if (sectionCount === 4) return 'l5';
+  return 'l6';
+};
+
 const Summary: React.FC = () => {
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const location = useLocation();
   const { resultId } = useParams();
   const locationState = location.state as SummaryLocationState | null;
@@ -436,6 +447,54 @@ const Summary: React.FC = () => {
     });
   }, [displayKeywords, formattedDisplayText]);
 
+  const canvasDraft = React.useMemo<MeetingTemplateDraft | null>(() => {
+    const cleanSummaryText = formattedDisplayText.trim();
+    if (!cleanSummaryText) return null;
+
+    const sections = cleanSummaryText
+      .split(/\n\s*\n/)
+      .map((paragraph) => paragraph.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+      .slice(0, 6);
+
+    if (sections.length === 0) return null;
+
+    const keywordsForDraft = displayKeywords
+      .map((item) => (item.term ?? '').toString().trim())
+      .filter(Boolean)
+      .slice(0, 5);
+
+    const normalizedFileName = (fileName ?? 'meeting-summary').trim();
+    const titleSource = normalizedFileName.replace(/\.[^/.]+$/, '').trim();
+    const subtitleSource =
+      keywordsForDraft.length > 0
+        ? keywordsForDraft.join(' • ')
+        : sections[0].split(/\s+/).slice(0, 10).join(' ');
+
+    return {
+      draftId: `${resultId ?? 'summary'}-${summaryRatio}-${sections.length}`,
+      sourceId: resultId,
+      fileName: normalizedFileName,
+      title: titleSource || 'Meeting Summary',
+      subtitle: subtitleSource || 'Auto-generated meeting highlights',
+      dateLabel: uploadDateLabel,
+      templateId: buildCanvasTemplateId(sections.length),
+      summaryText: cleanSummaryText,
+      sections,
+      keywords: keywordsForDraft,
+    };
+  }, [displayKeywords, fileName, formattedDisplayText, resultId, summaryRatio, uploadDateLabel]);
+
+  const handleCreateCanvasTemplate = React.useCallback(() => {
+    if (!canvasDraft) return;
+    localStorage.setItem(CANVAS_DRAFT_STORAGE_KEY, JSON.stringify(canvasDraft));
+    navigate('/canvas', {
+      state: {
+        meetingTemplateDraft: canvasDraft,
+      },
+    });
+  }, [canvasDraft, navigate]);
+
   return (
     <div className="max-w-[1400px] mx-auto animate-fadeIn">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
@@ -564,8 +623,13 @@ const Summary: React.FC = () => {
             <span className="material-icons-round mr-2 text-sm">{isEditing ? 'check' : 'edit'}</span>
             {isEditing ? 'Done' : 'Edit Text'}
           </button>
-          <button className="px-7 py-2.5 rounded-xl bg-primary text-secondary font-bold hover:bg-primary-hover shadow-sm hover:shadow-md transition-all flex items-center">
-            Next
+          <button
+            type="button"
+            onClick={handleCreateCanvasTemplate}
+            disabled={!canvasDraft || isWaitingForSummary}
+            className="px-7 py-2.5 rounded-xl bg-primary text-secondary font-bold hover:bg-primary-hover shadow-sm hover:shadow-md transition-all flex items-center disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Create Canvas Template
             <span className="material-icons-round ml-2 text-sm">arrow_forward</span>
           </button>
         </div>

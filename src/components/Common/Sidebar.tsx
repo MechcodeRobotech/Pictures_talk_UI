@@ -86,8 +86,9 @@ const SidebarContainer = styled.aside`
   overflow: hidden;
   transition: width ${TRANSITION_MS}ms ease, transform ${TRANSITION_MS}ms ease;
   z-index: ${SIDEBAR_Z_INDEX};
-  background: ${SIDEBAR_BG_LIGHT};
-  border-right: 1px solid ${COLOR_GRAY_100};
+  background: rgba(255, 255, 255, 0.48);
+  border-right: 1px solid var(--ui-border);
+  backdrop-filter: blur(18px);
 
   @media (min-width: ${BREAKPOINT_MD_PX}px) {
     width: ${SIDEBAR_WIDTH_MD_PX}px;
@@ -100,8 +101,8 @@ const SidebarContainer = styled.aside`
   }
 
   &.dark {
-    background: ${SIDEBAR_BG_DARK};
-    border-right-color: ${COLOR_WHITE_05};
+    background: rgba(255, 255, 255, 0.03);
+    border-right-color: var(--ui-border);
   }
 
   .sidebar-header {
@@ -115,28 +116,30 @@ const SidebarContainer = styled.aside`
   .collapse-toggle {
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     color: ${COLOR_SLATE_500};
-    border: none;
-    background: transparent;
+    border: 1px solid transparent;
+    background: rgba(255, 255, 255, 0.4);
     cursor: pointer;
-    transition: color ${TRANSITION_MS}ms ease, background-color ${TRANSITION_MS}ms ease;
+    transition: color ${TRANSITION_MS}ms ease, background-color ${TRANSITION_MS}ms ease, border-color ${TRANSITION_MS}ms ease;
   }
 
   .collapse-toggle:hover {
-    background: ${COLOR_GRAY_50};
+    background: rgba(255, 255, 255, 0.9);
+    border-color: var(--ui-border);
     color: ${COLOR_SECONDARY};
   }
 
   &.dark .collapse-toggle {
     color: ${COLOR_SLATE_400};
+    background: rgba(255, 255, 255, 0.04);
   }
 
   &.dark .collapse-toggle:hover {
-    background: ${COLOR_WHITE_05};
+    background: rgba(255, 255, 255, 0.08);
     color: ${COLOR_WHITE};
   }
 
@@ -163,27 +166,33 @@ const SidebarContainer = styled.aside`
     display: flex;
     align-items: center;
     padding: ${MENU_PADDING_Y_PX}px ${MENU_PADDING_X_PX}px;
-    border-radius: ${MENU_RADIUS_PX}px;
+    border-radius: 16px;
     transition: all ${TRANSITION_MS}ms ease;
     color: ${COLOR_SLATE_500};
     text-decoration: none;
+    border: 1px solid transparent;
   }
 
   .menu-row.active,
   .menu-link.active {
-    background: ${COLOR_PRIMARY_10};
-    color: ${COLOR_PRIMARY};
+    background: linear-gradient(135deg, rgba(248, 175, 36, 0.16), rgba(248, 175, 36, 0.08));
+    color: #9a6100;
     font-weight: 700;
+    border-color: rgba(248, 175, 36, 0.22);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
   }
 
   &.dark .menu-row.active,
   &.dark .menu-link.active {
-    background: ${COLOR_PRIMARY_20};
+    background: linear-gradient(135deg, rgba(248, 175, 36, 0.18), rgba(248, 175, 36, 0.08));
+    color: #ffd37a;
+    border-color: rgba(248, 175, 36, 0.2);
   }
 
   .menu-row.inactive:hover,
   .menu-link.inactive:hover {
-    background: ${COLOR_GRAY_50};
+    background: rgba(255, 255, 255, 0.58);
+    border-color: var(--ui-border);
     color: ${COLOR_SECONDARY};
   }
 
@@ -194,7 +203,7 @@ const SidebarContainer = styled.aside`
 
   &.dark .menu-row.inactive:hover,
   &.dark .menu-link.inactive:hover {
-    background: ${COLOR_WHITE_05};
+    background: rgba(255, 255, 255, 0.05);
     color: ${COLOR_WHITE};
   }
 
@@ -294,11 +303,11 @@ const SidebarContainer = styled.aside`
 
   .profile-section {
     padding-top: ${FOOTER_TOP_PADDING_PX}px;
-    border-top: 1px solid ${COLOR_GRAY_100};
+    border-top: 1px solid var(--ui-border);
   }
 
   &.dark .profile-section {
-    border-top-color: ${COLOR_WHITE_05};
+    border-top-color: var(--ui-border);
   }
 
   .profile-row {
@@ -312,11 +321,11 @@ const SidebarContainer = styled.aside`
   }
 
   .profile-row:hover {
-    background: ${COLOR_GRAY_50};
+    background: rgba(255, 255, 255, 0.6);
   }
 
   &.dark .profile-row:hover {
-    background: ${COLOR_WHITE_05};
+    background: rgba(255, 255, 255, 0.05);
   }
 
   .profile-avatar {
@@ -383,7 +392,7 @@ const SidebarContainer = styled.aside`
     justify-content: center;
     gap: ${MENU_ICON_GAP_PX}px;
     border-radius: ${LOGOUT_RADIUS_PX}px;
-    background: ${COLOR_BLACK};
+    background: linear-gradient(135deg, #0f172a, #1f3a5f);
     color: ${COLOR_WHITE};
     padding: ${LOGOUT_PADDING_Y_PX}px 0;
     font-size: ${LOGOUT_FONT_SIZE_PX}px;
@@ -396,7 +405,7 @@ const SidebarContainer = styled.aside`
   }
 
   .logout-button:hover {
-    background: ${COLOR_BLACK_90};
+    background: linear-gradient(135deg, #10203b, #234873);
   }
 
   .logout-icon {
